@@ -79,6 +79,17 @@ textarea { min-height: 96px; resize: vertical }
 .inv b { font-size: 12px; letter-spacing: .3px }
 .vuoto { text-align: center; padding: 40px 16px; color: var(--muted) }
 .vuoto b { color: var(--fg); display: block; font-size: 18px; margin-bottom: 8px }
+.mic { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; border: 0; border-radius: 12px;
+  padding: 15px; font-size: 18px; font-weight: 700; background: var(--navy); color: var(--navy-fg) }
+.mic .pallino { width: 14px; height: 14px; border-radius: 50%; background: #e24b4a }
+.mic.on { background: #c62828; color: #fff }
+.mic.on .pallino { background: #fff; animation: pulsa 1s ease-in-out infinite }
+@keyframes pulsa { 50% { opacity: .25 } }
+.legenda { font-size: 14px; line-height: 1.45 }
+.legenda ol { margin: 6px 0 6px; padding-left: 22px }
+.legenda i { color: var(--muted); font-style: normal }
+.compilato { animation: lampo 1.2s ease-out }
+@keyframes lampo { from { background: #fde2b8 } }
 .sono { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted) }
 .sono select { width: auto; padding: 8px 10px; font-size: 15px }
 </style>
@@ -94,6 +105,23 @@ textarea { min-height: 96px; resize: vertical }
 </main>
 
 <main id="form-main" hidden>
+  <div class="campo voce">
+    <button type="button" class="mic" id="mic"><span class="pallino"></span><span id="mic-t">Registra a voce</span></button>
+    <div class="legenda">
+      <b>Di' le parole in grassetto, in quest'ordine:</b>
+      <ol>
+        <li><b>Cantiere</b> … <i>(es. Clotilde)</i></li>
+        <li><b>Proprietario</b> o <b>appartamento</b> … <i>(es. Treves)</i></li>
+        <li><b>Problema</b> … <i>(es. la porta della camera batte)</i></li>
+        <li><b>Esegue</b> … <i>(chi farà il lavoro, es. Sami)</i></li>
+        <li><b>Responsabile</b> … <i>(facoltativo, es. Alessandro)</i></li>
+      </ol>
+      <span class="nota">Puoi aggiungere «<b>entro</b> 7 giorni». Esempio: «Cantiere Clotilde, proprietario Treves, problema porta che batte, esegue Sami, responsabile Alessandro».</span>
+    </div>
+    <textarea id="detto" placeholder="Qui compare quello che hai detto. Puoi anche dettare qui con il microfono della tastiera." hidden></textarea>
+    <p class="nota" id="voce-esito" hidden></p>
+  </div>
+
   <div class="campo">
     <div class="titolo">Cantiere</div>
     <div class="chips" id="cantieri"></div>
@@ -303,6 +331,81 @@ function disegnaInviate() {
     r.appendChild(t); r.appendChild(st); s.appendChild(r);
   });
 }
+
+// ---------- registra a voce (Eric 11/11): si dicono le parole chiave della legenda e i campi si compilano da soli.
+// Usa il riconoscimento vocale del telefono (gratis, niente invio di audio). Se manca, si detta con la tastiera.
+const PAROLE = [
+  ["ca", /\bcantier[ei]\b/i],
+  ["pr", /\b(?:proprietari[oa]|appartamento|alloggio)\b/i],
+  ["t", /\b(?:problema|problematica|problemi|descrizione)\b/i],
+  ["ex", /\b(?:chi esegue|esegue|eseguirà|eseguito da|esecutore)\b/i],
+  ["ps", /\b(?:responsabil[ei]|resp)\b/i],
+  ["d", /\b(?:entro|scadenza|scade)\b/i],
+];
+const SOPRANNOMI = {ale: "Alessandro", alessandro: "Alessandro", max: "Massimiliano", massi: "Massimiliano", massimiliano: "Massimiliano",
+  marco: "Marco", eric: "Eric", erik: "Eric", vincenzo: "Vincenzo", enzo: "Vincenzo"};
+const pulisci = s => s.replace(/^[\s,.:;–-]+|[\s,.:;–-]+$/g, "");
+const NUMERI = {uno: 1, due: 2, tre: 3, quattro: 4, cinque: 5, sei: 6, sette: 7, otto: 8, nove: 9, dieci: 10, quindici: 15, venti: 20, trenta: 30};
+function leggiDetto(testo) {
+  // trova dove inizia ogni parola chiave e taglia il testo in pezzi
+  const pezzi = [];
+  PAROLE.forEach(([campo, rx]) => {
+    const g = new RegExp(rx.source, "gi"); let m;
+    while ((m = g.exec(testo))) pezzi.push({campo, parola: m[0].toLowerCase(), da: m.index, dopo: m.index + m[0].length});
+  });
+  pezzi.sort((a, b) => a.da - b.da);
+  const out = {};
+  pezzi.forEach((p, i) => {
+    if (out[p.campo] !== undefined) return;            // vale la prima volta che la parola compare
+    const v = pulisci(testo.slice(p.dopo, i + 1 < pezzi.length ? pezzi[i + 1].da : testo.length));
+    if (v) { out[p.campo] = v; if (p.campo === "pr") out.prParola = p.parola; }
+  });
+  if (!pezzi.length && testo.trim()) out.t = pulisci(testo);   // nessuna parola chiave: è tutto il problema
+  return out;
+}
+function compilaDaVoce(testo) {
+  const o = leggiDetto(testo), fatti = [];
+  const segna = el => { el.classList.remove("compilato"); void el.offsetWidth; el.classList.add("compilato"); };
+  if (o.ca) { const v = o.ca.toUpperCase(); const noto = suggerimenti.cantieri.find(c => c === v || v.startsWith(c));
+    if (noto) { st.ca = noto; $("ca").value = ""; } else $("ca").value = v; fatti.push("cantiere"); }
+  if (o.pr) { const v = o.pr.replace(/^(?:il|la|lo|di|del|della|numero|n\.)\s+/i, "").toUpperCase();
+    $("pr").value = o.prParola !== "proprietario" && o.prParola !== "proprietaria" && /^\d/.test(v) ? "APP. " + v : v; segna($("pr")); fatti.push("proprietario"); }
+  if (o.t) { $("t").value = o.t[0].toUpperCase() + o.t.slice(1); segna($("t")); fatti.push("problema"); }
+  if (o.ex) { const v = o.ex.replace(/^(?:il|la|lo)\s+/i, ""); const noto = suggerimenti.esecutori.find(e => e.toLowerCase().startsWith(v.toLowerCase().split(" ")[0]));
+    $("ex").value = noto || (v[0].toUpperCase() + v.slice(1)); segna($("ex")); fatti.push("chi esegue"); }
+  if (o.ps) { const chi = [...new Set(o.ps.toLowerCase().split(/[^a-zà-ú]+/).map(w => SOPRANNOMI[w]).filter(Boolean))];
+    if (chi.length) { st.ps = chi; fatti.push("responsabile"); } }
+  if (o.d) { const m = o.d.toLowerCase().match(/(\d+|[a-z]+)\s*(giorn|settiman)/);
+    if (m) { const n = (+m[1] || NUMERI[m[1]] || 0) * (m[2].startsWith("settiman") ? 7 : 1);
+      if (n) { st.gg = [7, 15, 30].includes(n) ? n : 0; $("d").value = traGiorni(n); fatti.push("scadenza"); } } }
+  disegna();
+  $("voce-esito").hidden = false;
+  $("voce-esito").textContent = fatti.length ? "Compilato: " + fatti.join(", ") + ". Controlla qui sotto e premi Invia."
+    : "Non ho riconosciuto le parole della legenda: riprova o scrivi nei campi.";
+}
+const Riconosci = window.SpeechRecognition || window.webkitSpeechRecognition;
+let ascolto = null, dettoFinale = "";
+$("detto").addEventListener("input", () => compilaDaVoce($("detto").value));
+$("mic").onclick = () => {
+  if (ascolto) { ascolto.stop(); return; }
+  if (!Riconosci) {   // niente riconoscimento nel browser: si detta con il microfono della tastiera
+    $("detto").hidden = false; $("detto").focus();
+    $("voce-esito").hidden = false; $("voce-esito").textContent = "Tocca il microfono della tastiera e parla seguendo la legenda.";
+    return;
+  }
+  dettoFinale = $("detto").value ? $("detto").value + " " : "";
+  ascolto = new Riconosci(); ascolto.lang = "it-IT"; ascolto.continuous = true; ascolto.interimResults = true;
+  ascolto.onresult = e => { let prov = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) dettoFinale += e.results[i][0].transcript + " "; else prov += e.results[i][0].transcript; }
+    $("detto").hidden = false; $("detto").value = (dettoFinale + prov).trim(); };
+  ascolto.onerror = e => { $("voce-esito").hidden = false;
+    $("voce-esito").textContent = e.error === "not-allowed" ? "Il telefono non dà il permesso al microfono: usa il microfono della tastiera qui sotto." : "Registrazione interrotta: riprova."; $("detto").hidden = false; };
+  ascolto.onend = () => { ascolto = null; $("mic").classList.remove("on"); $("mic-t").textContent = "Registra a voce";
+    if ($("detto").value.trim()) compilaDaVoce($("detto").value); };
+  try { ascolto.start(); $("mic").classList.add("on"); $("mic-t").textContent = "Sto ascoltando… tocca per finire"; $("voce-esito").hidden = true; }
+  catch (e) { ascolto = null; $("detto").hidden = false; $("detto").focus(); }
+};
 
 // ---------- avvio
 if (!K) { $("senza-codice").hidden = false; $("vai-bacheca").hidden = true; }

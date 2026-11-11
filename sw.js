@@ -1,6 +1,6 @@
 // Tiene l'app nel telefono: si apre subito e funziona anche senza rete.
 // Mostra la copia salvata e intanto scarica quella nuova. A ogni modifica dell'app alzare CACHE.
-const CACHE = "segnalazioni-v1";
+const CACHE = "segnalazioni-v2";
 const FILE = ["./", "index.html", "bacheca.html", "icona-180.png", "icona-192.png", "icona-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILE.map(f => new Request(f, {cache: "reload"}))))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
