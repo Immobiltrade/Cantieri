@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d2b44">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Segnalazioni">
+<link rel="apple-touch-icon" href="icona-180.png">
+<title>Segnalazioni cantieri</title>
+<style>
+/* App da pollice: si compila dall'alto in basso, il pulsante Invia è sempre in fondo allo schermo.
+   Niente font o librerie esterne: si apre all'istante e funziona anche senza rete (invia appena torna). */
+:root {
+  --bg: #f3f4f7; --card: #ffffff; --fg: #1d2b44; --muted: #5f6a82; --line: #dce0e8; --chip: #eceef3;
+  --accent: #f7941d; --accent-fg: #1d2b44; --navy: #1d2b44; --navy-fg: #ffffff; --sel: #1d2b44; --sel-fg: #fff;
+  --ok: #2e7d32; --bad: #c62828;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151e; --card: #19202d; --fg: #eef1f6; --muted: #9ba4b6; --line: #2b3446; --chip: #242d3e;
+  --navy: #0b0f16; --navy-fg: #eef1f6; --sel: #f7941d; --sel-fg: #1d2b44; --ok: #5cb860; --bad: #ef5350; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151e; --card: #19202d; --fg: #eef1f6; --muted: #9ba4b6; --line: #2b3446; --chip: #242d3e;
+  --navy: #0b0f16; --navy-fg: #eef1f6; --sel: #f7941d; --sel-fg: #1d2b44; --ok: #5cb860; --bad: #ef5350; color-scheme: dark }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent }
+html, body { margin: 0; overflow-x: hidden }
+body { background: var(--bg); color: var(--fg); font: 16px/1.4 var(--font); -webkit-text-size-adjust: 100% }
+button, input, textarea, select { font: inherit; color: inherit }
+button { cursor: pointer; touch-action: manipulation }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px }
+[hidden] { display: none !important }
+
+.barra { position: sticky; top: 0; z-index: 5; background: var(--navy); color: var(--navy-fg);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  display: flex; align-items: center; gap: 10px; min-height: 52px }
+.barra h1 { font-size: 18px; margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.barra h1 b { color: var(--accent) }
+.barra a { color: var(--navy-fg); font-size: 14px; opacity: .85; text-decoration: none; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 4px 9px; white-space: nowrap }
+
+main { padding: 14px max(16px, env(safe-area-inset-right, 0px)) 120px max(16px, env(safe-area-inset-left, 0px));
+  max-width: 560px; margin: 0 auto; display: grid; gap: 12px }
+.campo { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px }
+.campo > label, .titolo { font-weight: 700; font-size: 15px; display: flex; justify-content: space-between; gap: 8px }
+.facolt { font-weight: 400; color: var(--muted); font-size: 13px }
+input[type=text], input[type=date], textarea, select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); padding: 12px; font-size: 17px }
+textarea { min-height: 96px; resize: vertical }
+.maiusc { text-transform: uppercase }
+.maiusc::placeholder { text-transform: none }
+.chips { display: flex; flex-wrap: wrap; gap: 8px }
+.chip { border: 1px solid var(--line); background: var(--chip); border-radius: 999px; padding: 9px 14px; font-size: 15px; min-height: 42px }
+.chip[aria-pressed="true"] { background: var(--sel); color: var(--sel-fg); border-color: var(--sel); font-weight: 700 }
+.chip.persona { display: inline-flex; align-items: center; gap: 7px; padding-left: 6px }
+.chip.persona i { font-style: normal; width: 30px; height: 30px; border-radius: 50%; background: #cecbf6; color: #3c3489;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700 }
+.riga-data { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.riga-data input { flex: 1; min-width: 150px }
+.nota { font-size: 13px; color: var(--muted) }
+
+.fondo { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: linear-gradient(transparent, var(--bg) 30%);
+  padding: 22px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 12px) max(16px, env(safe-area-inset-left, 0px)) }
+.grande { display: block; width: 100%; max-width: 560px; margin: 0 auto; border: 0; border-radius: 14px; padding: 17px; font-size: 19px; font-weight: 700;
+  background: var(--accent); color: var(--accent-fg); box-shadow: 0 4px 14px rgba(0,0,0,.18) }
+.grande:disabled { opacity: .55 }
+.errore { color: var(--bad); font-weight: 600; font-size: 14px; text-align: center; margin: 0 0 8px }
+
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9;
+  background: var(--ok); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  max-width: calc(100% - 32px); text-align: center }
+.inviate h2 { font-size: 15px; margin: 6px 0 0 }
+.inv { display: flex; gap: 10px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px }
+.inv .st { font-size: 12px; font-weight: 700; white-space: nowrap; color: var(--ok) }
+.inv .st.coda { color: var(--accent) }
+.inv div { flex: 1; min-width: 0; overflow-wrap: anywhere }
+.inv b { font-size: 12px; letter-spacing: .3px }
+.vuoto { text-align: center; padding: 40px 16px; color: var(--muted) }
+.vuoto b { color: var(--fg); display: block; font-size: 18px; margin-bottom: 8px }
+.sono { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted) }
+.sono select { width: auto; padding: 8px 10px; font-size: 15px }
+</style>
+</head>
+<body>
+<header class="barra">
+  <h1>Nuova <b>segnalazione</b></h1>
+  <a id="vai-bacheca" href="bacheca.html">Bacheca</a>
+</header>
+
+<main id="senza-codice" hidden>
+  <div class="vuoto"><b>Manca il codice</b>Apri l'app dal link che ti ha mandato Eric: il codice è già dentro il link.</div>
+</main>
+
+<main id="form-main" hidden>
+  <div class="campo">
+    <div class="titolo">Cantiere</div>
+    <div class="chips" id="cantieri"></div>
+    <input type="text" id="ca" class="maiusc" placeholder="Altro cantiere…" autocomplete="off" autocapitalize="characters" enterkeyhint="next">
+  </div>
+
+  <div class="campo">
+    <label for="pr">Proprietario o n. appartamento</label>
+    <input type="text" id="pr" class="maiusc" placeholder="Es. TREVES, LOFT B, APP. 4" autocomplete="off" autocapitalize="characters" enterkeyhint="next">
+    <div class="chips" id="proprietari"></div>
+  </div>
+
+  <div class="campo">
+    <label for="t">Problema</label>
+    <textarea id="t" placeholder="Es. la porta della camera da letto batte" autocapitalize="sentences" enterkeyhint="done"></textarea>
+    <span class="nota">Puoi dettarlo con il microfono della tastiera.</span>
+  </div>
+
+  <div class="campo">
+    <div class="titolo">Responsabile <span class="facolt">facoltativo, anche più di uno</span></div>
+    <div class="chips" id="persone"></div>
+  </div>
+
+  <div class="campo">
+    <label for="ex">Chi esegue <span class="facolt">facoltativo</span></label>
+    <input type="text" id="ex" placeholder="Es. Sami (decoratore)" autocomplete="off" autocapitalize="words" enterkeyhint="done">
+    <div class="chips" id="esecutori"></div>
+  </div>
+
+  <div class="campo">
+    <div class="titolo">Entro il</div>
+    <div class="riga-data">
+      <div class="chips" id="giorni"></div>
+      <input type="date" id="d" aria-label="Data di scadenza">
+    </div>
+  </div>
+
+  <div class="sono"><label for="chi">Mandata da</label>
+    <select id="chi"><option value="">—</option><option>Eric</option><option>Marco</option><option>Massimiliano</option><option>Vincenzo</option><option>Alessandro</option><option>Daniele</option><option>Altro</option></select>
+  </div>
+
+  <section class="inviate" id="inviate"></section>
+</main>
+
+<div class="fondo" id="fondo" hidden>
+  <p class="errore" id="err" role="alert" hidden></p>
+  <button class="grande" id="invia" type="button">Invia segnalazione</button>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+// ---------- collegamento: database Supabase "immobiltrade", tabella cantieri_segnalazioni (supabase_cantieri.sql).
+// Nessun login: il codice segreto arriva nel link (#k=...) e resta salvato nel telefono.
+const SUPA_URL = "https://miyheufkwfdrlzgqglyk.supabase.co";
+const SUPA_KEY = "sb_publishable_VcQ-zNBNcgl5rQf_MIiP3Q_hOiowtfD";  // chiave PUBBLICA (publishable)
+const PERSONE = ["Marco", "Eric", "Massimiliano", "Vincenzo", "Alessandro"];
+const $ = id => document.getElementById(id);
+const leggi = (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); } catch (e) { return def; } };
+const scrivi = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const pad = n => String(n).padStart(2, "0");
+const iso = x => x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate());
+const traGiorni = n => { const x = new Date(); x.setDate(x.getDate() + n); return iso(x); };
+const fmt = d => d ? d.split("-").reverse().slice(0, 2).join("/") : "";
+const nuovoId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+// codice dal link: lo salvo e lo tengo nell'indirizzo (così "Aggiungi a Home" lo conserva)
+const daLink = new URLSearchParams(location.hash.slice(1)).get("k");
+if (daLink) scrivi("cantieri-k", daLink);
+const K = daLink || leggi("cantieri-k", "");
+if (K && !daLink) history.replaceState(null, "", location.pathname + location.search + "#k=" + encodeURIComponent(K));
+$("vai-bacheca").href = "bacheca.html#k=" + encodeURIComponent(K);
+
+// Android: manifest creato qui, con dentro il link col codice
+if (K) {
+  const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
+  const man = {name: "Segnalazioni cantieri", short_name: "Segnalazioni", start_url: base + "index.html#k=" + encodeURIComponent(K),
+    scope: base, display: "standalone", background_color: "#1d2b44", theme_color: "#1d2b44", lang: "it",
+    icons: [{src: base + "icona-192.png", sizes: "192x192", type: "image/png"}, {src: base + "icona-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable"}]};
+  const l = document.createElement("link"); l.rel = "manifest";
+  l.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
+  document.head.appendChild(l);
+}
+
+async function rpc(nome, corpo) {
+  const r = await fetch(SUPA_URL + "/rest/v1/rpc/" + nome, {method: "POST",
+    headers: {apikey: SUPA_KEY, "Content-Type": "application/json"}, body: JSON.stringify(corpo)});
+  if (!r.ok) { const e = new Error(r.status + " " + await r.text()); e.stato = r.status; throw e; }
+  const txt = await r.text(); return txt ? JSON.parse(txt) : null;
+}
+
+// ---------- stato del modulo
+const st = {ca: leggi("cantieri-ultimo-ca", ""), ps: [], gg: 15};
+let suggerimenti = leggi("cantieri-sugg", {cantieri: ["CLOTILDE"], proprietari: {}, esecutori: []});
+
+function chip(testo, premuto, fn, cls = "") {
+  const b = document.createElement("button"); b.type = "button"; b.className = "chip " + cls;
+  b.setAttribute("aria-pressed", premuto ? "true" : "false"); b.onclick = fn;
+  if (cls === "persona") b.innerHTML = "<i></i><span></span>", b.querySelector("i").textContent = testo.slice(0, 2).toUpperCase(), b.querySelector("span").textContent = testo;
+  else b.textContent = testo;
+  return b;
+}
+function disegna() {
+  const caAttuale = ($("ca").value.trim() || st.ca).toUpperCase();
+  const c = $("cantieri"); c.innerHTML = "";
+  const elenco = [...new Set([...(st.ca ? [st.ca] : []), ...suggerimenti.cantieri])].filter(Boolean);
+  elenco.forEach(x => c.appendChild(chip(x, !$("ca").value.trim() && x === st.ca, () => { st.ca = x; $("ca").value = ""; disegna(); })));
+  const p = $("proprietari"); p.innerHTML = "";
+  (suggerimenti.proprietari[caAttuale] || []).slice(0, 12).forEach(x =>
+    p.appendChild(chip(x, $("pr").value.trim().toUpperCase() === x, () => { $("pr").value = $("pr").value.trim().toUpperCase() === x ? "" : x; disegna(); })));
+  const ps = $("persone"); ps.innerHTML = "";
+  PERSONE.forEach(x => ps.appendChild(chip(x, st.ps.includes(x), () => {
+    st.ps = st.ps.includes(x) ? st.ps.filter(y => y !== x) : [...st.ps, x]; disegna(); }, "persona")));
+  const e = $("esecutori"); e.innerHTML = "";
+  suggerimenti.esecutori.slice(0, 10).forEach(x =>
+    e.appendChild(chip(x, $("ex").value.trim() === x, () => { $("ex").value = $("ex").value.trim() === x ? "" : x; disegna(); })));
+  const g = $("giorni"); g.innerHTML = "";
+  [7, 15, 30].forEach(n => g.appendChild(chip(n + " gg", st.gg === n, () => { st.gg = n; $("d").value = traGiorni(n); disegna(); })));
+  disegnaInviate();
+}
+$("ca").addEventListener("input", disegna);
+$("pr").addEventListener("input", () => { const v = $("pr").value.trim().toUpperCase();
+  document.querySelectorAll("#proprietari .chip").forEach(b => b.setAttribute("aria-pressed", b.textContent === v ? "true" : "false")); });
+$("ex").addEventListener("input", () => { const v = $("ex").value.trim();
+  document.querySelectorAll("#esecutori .chip").forEach(b => b.setAttribute("aria-pressed", b.textContent === v ? "true" : "false")); });
+$("d").addEventListener("input", () => { st.gg = 0; document.querySelectorAll("#giorni .chip").forEach(b => b.setAttribute("aria-pressed", "false")); });
+$("chi").value = leggi("cantieri-chi", "");
+$("chi").addEventListener("change", () => scrivi("cantieri-chi", $("chi").value));
+$("t").addEventListener("input", () => { $("err").hidden = true; });
+
+// ---------- suggerimenti presi dalle segnalazioni già in bacheca (cantieri, proprietari, chi esegue)
+async function aggiornaSuggerimenti() {
+  try {
+    const righe = await rpc("cantieri_elenco", {k: K}) || [];
+    const conta = {}, prop = {}, ese = {};
+    righe.forEach(r => {
+      if (r.ca) conta[r.ca] = (conta[r.ca] || 0) + 1;
+      if (r.ca && r.pr) { prop[r.ca] = prop[r.ca] || {}; prop[r.ca][r.pr] = (prop[r.ca][r.pr] || 0) + 1; }
+      if (r.ex) { const k = r.ex.trim(); const kk = k.toLowerCase(); ese[kk] = ese[kk] || {n: 0, testo: k}; ese[kk].n++; }
+    });
+    const ord = o => Object.keys(o).sort((a, b) => o[b] - o[a]);
+    suggerimenti = {cantieri: ord(conta),
+      proprietari: Object.fromEntries(Object.entries(prop).map(([c, o]) => [c, ord(o)])),
+      esecutori: Object.values(ese).sort((a, b) => b.n - a.n).map(x => x.testo)};
+    if (!suggerimenti.cantieri.length) suggerimenti.cantieri = ["CLOTILDE"];
+    scrivi("cantieri-sugg", suggerimenti);
+    if (!st.ca) st.ca = suggerimenti.cantieri[0];
+    disegna();
+  } catch (e) {
+    if (e.stato === 400 && /codice/.test(e.message)) mostraErrore("Il codice nel link non è valido: chiedi a Eric il link giusto.");
+  }
+}
+
+// ---------- invio (con coda: senza rete la segnalazione resta nel telefono e parte appena torna)
+let coda = leggi("cantieri-coda", []);   // [{riga, stato: "coda"|"inviata", quando}]
+let inInvio = false;
+async function svuotaCoda() {
+  if (inInvio || !navigator.onLine) return;
+  inInvio = true;
+  try {
+    for (const x of coda.filter(x => x.stato === "coda")) {
+      try { await rpc("cantieri_salva", {k: K, riga: x.riga}); x.stato = "inviata"; }
+      catch (e) { if (e.stato >= 400 && e.stato < 500) { x.stato = "errore"; x.errore = e.message; } else break; }
+      scrivi("cantieri-coda", coda);
+    }
+  } finally { inInvio = false; disegnaInviate(); }
+}
+window.addEventListener("online", svuotaCoda);
+setInterval(svuotaCoda, 30000);
+
+function mostraErrore(msg) { $("err").textContent = msg; $("err").hidden = false; }
+let tToast = 0;
+function toast(msg) { $("toast").textContent = msg; $("toast").hidden = false; clearTimeout(tToast); tToast = setTimeout(() => $("toast").hidden = true, 2600); }
+
+$("invia").onclick = async () => {
+  const ca = ($("ca").value.trim() || st.ca || "").toUpperCase();
+  const t = $("t").value.trim();
+  if (!ca) { mostraErrore("Scegli il cantiere"); return; }
+  if (!t) { mostraErrore("Scrivi qual è il problema"); $("t").focus(); return; }
+  if (!$("d").value) { mostraErrore("Scegli la scadenza"); return; }
+  const riga = {id: nuovoId(), ca, pr: $("pr").value.trim().toUpperCase(), t: t[0].toUpperCase() + t.slice(1),
+    ps: st.ps.slice(), s: 0, ex: $("ex").value.trim(), nt: "", d: $("d").value, creata: iso(new Date()), autore: $("chi").value};
+  coda.unshift({riga, stato: "coda", quando: Date.now()});
+  coda = coda.filter((x, i) => x.stato !== "inviata" || i < 15);
+  scrivi("cantieri-coda", coda);
+  // pronta per la prossima: resta solo il cantiere (il proprietario si riprende con un tocco dai pulsanti)
+  st.ca = ca; scrivi("cantieri-ultimo-ca", ca); $("ca").value = ""; $("pr").value = "";
+  if (!suggerimenti.cantieri.includes(ca)) suggerimenti.cantieri.unshift(ca);
+  $("t").value = ""; $("ex").value = ""; st.ps = []; st.gg = 15; $("d").value = traGiorni(15); $("err").hidden = true;
+  disegna();
+  window.scrollTo({top: 0, behavior: "smooth"});
+  await svuotaCoda();
+  toast(coda[0].stato === "inviata" ? "Segnalazione inviata ✓" : "Salvata sul telefono: parte appena c'è rete");
+  aggiornaSuggerimenti();
+};
+
+function disegnaInviate() {
+  const s = $("inviate"); s.innerHTML = "";
+  if (!coda.length) return;
+  const h = document.createElement("h2"); h.textContent = "Mandate da questo telefono"; s.appendChild(h);
+  coda.slice(0, 15).forEach(x => {
+    const r = document.createElement("div"); r.className = "inv";
+    const t = document.createElement("div");
+    const b = document.createElement("b"); b.textContent = [x.riga.ca, x.riga.pr].filter(Boolean).join(" · ");
+    t.appendChild(b); t.appendChild(document.createElement("br")); t.appendChild(document.createTextNode(x.riga.t + (x.riga.d ? " — entro il " + fmt(x.riga.d) : "")));
+    const st = document.createElement("span"); st.className = "st" + (x.stato === "inviata" ? "" : " coda");
+    st.textContent = x.stato === "inviata" ? "Inviata ✓" : x.stato === "errore" ? "Non accettata" : "In attesa di rete";
+    r.appendChild(t); r.appendChild(st); s.appendChild(r);
+  });
+}
+
+// ---------- avvio
+if (!K) { $("senza-codice").hidden = false; $("vai-bacheca").hidden = true; }
+else {
+  $("form-main").hidden = false; $("fondo").hidden = false;
+  $("d").value = traGiorni(15);
+  if (!st.ca) st.ca = suggerimenti.cantieri[0] || "";
+  disegna(); svuotaCoda(); aggiornaSuggerimenti();
+}
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
