@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d2b44">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lavori">
+<link rel="apple-touch-icon" href="icona-180.png">
+<title>I miei lavori</title>
+<style>
+/* Pagina per chi esegue (Eric 20/11/2026): solo le SUE cose, dalla più urgente; «Fatto» e foto.
+   Pulsanti grandi, poche parole. Niente librerie esterne: si apre subito. */
+:root {
+  --bg: #f3f4f7; --card: #ffffff; --fg: #1d2b44; --muted: #5f6a82; --line: #dce0e8; --chip: #eceef3;
+  --accent: #f7941d; --navy: #1d2b44; --navy-fg: #ffffff;
+  --ok: #2e7d32; --ok-bg: #e6f4e7; --red: #c62828; --red-bg: #fde8e8; --orange: #b45a00; --orange-bg: #fff1dc;
+  --green: #2f6b3c; --green-bg: #e7f3ea;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151e; --card: #19202d; --fg: #eef1f6; --muted: #9ba4b6; --line: #2b3446; --chip: #242d3e;
+  --navy: #0b0f16; --navy-fg: #eef1f6; --ok: #5cb860; --ok-bg: #1d3322; --red: #ef6b6b; --red-bg: #3a1c1f;
+  --orange: #ffb35c; --orange-bg: #3a2a14; --green: #7fd08f; --green-bg: #1b3022; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151e; --card: #19202d; --fg: #eef1f6; --muted: #9ba4b6; --line: #2b3446; --chip: #242d3e;
+  --navy: #0b0f16; --navy-fg: #eef1f6; --ok: #5cb860; --ok-bg: #1d3322; --red: #ef6b6b; --red-bg: #3a1c1f;
+  --orange: #ffb35c; --orange-bg: #3a2a14; --green: #7fd08f; --green-bg: #1b3022; color-scheme: dark }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent }
+html, body { margin: 0; overflow-x: hidden }
+body { background: var(--bg); color: var(--fg); font: 17px/1.4 var(--font); padding-bottom: calc(24px + env(safe-area-inset-bottom)) }
+header { background: var(--navy); color: var(--navy-fg); padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+  display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 2 }
+header h1 { margin: 0; font-size: 21px; flex: 1 }
+header small { display: block; font-size: 13px; font-weight: 400; opacity: .75 }
+header button { background: rgba(255,255,255,.14); color: inherit; border: 0; border-radius: 10px; height: 44px; width: 44px;
+  display: flex; align-items: center; justify-content: center }
+main { padding: 12px 16px; max-width: 640px; margin: 0 auto }
+.avviso { background: var(--orange-bg); color: var(--orange); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; font-size: 15px }
+.avviso.err { background: var(--red-bg); color: var(--red) }
+h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 2px 8px }
+.vuoto { text-align: center; color: var(--muted); padding: 30px 10px; font-size: 18px }
+.cd { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 0 0 12px; overflow: hidden }
+.urg { padding: 7px 14px; font-weight: 700; font-size: 15px; display: flex; justify-content: space-between; gap: 8px }
+.urg.r { background: var(--red-bg); color: var(--red) } .urg.o { background: var(--orange-bg); color: var(--orange) }
+.urg.g { background: var(--green-bg); color: var(--green) } .urg.f { background: var(--ok-bg); color: var(--ok) }
+.urg span:last-child { font-weight: 500 }
+.corpo { padding: 10px 14px 4px }
+.ca { font-size: 19px; font-weight: 800; letter-spacing: .02em }
+.pr { display: inline-block; background: var(--chip); border-radius: 6px; padding: 1px 7px; font-size: 14px; font-weight: 700; margin-left: 6px; vertical-align: 2px }
+.t { font-size: 18px; margin: 6px 0 4px }
+.nt, .chi { color: var(--muted); font-size: 15px; margin: 2px 0 }
+.foto { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px }
+.foto a { display: block; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: var(--chip) }
+.foto img { width: 100%; height: 100%; object-fit: cover; display: block }
+.bt { display: flex; gap: 10px; padding: 10px 14px 14px }
+.bt button, .bt label { flex: 1; height: 54px; border-radius: 12px; border: 0; font: 700 17px var(--font);
+  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer }
+.ph { background: var(--chip); color: var(--fg) }
+.ok { background: var(--ok); color: #fff }
+.an { background: var(--chip); color: var(--fg); flex: 0 0 auto !important; padding: 0 18px }
+.bt input { display: none }
+button:disabled, label.off { opacity: .45; pointer-events: none }
+.inv { color: var(--muted); font-size: 14px; padding: 0 14px 8px }
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
+footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 16px }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titolo">I miei lavori<small id="sotto">Cose da finire nei cantieri</small></h1>
+  <button type="button" id="aggiorna" aria-label="Aggiorna"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+</header>
+<main>
+  <div id="msg"></div>
+  <div id="lista"></div>
+  <footer id="piede"></footer>
+</main>
+<script>
+// Dati: Supabase "immobiltrade", funzioni operaio_elenco / operaio_fatto / operaio_foto (supabase_cantieri_operai.sql).
+// Il codice PERSONALE arriva nel link (#o=...) e resta salvato nel telefono: con quello si vedono solo le proprie cose.
+const SUPA_URL = "https://miyheufkwfdrlzgqglyk.supabase.co";
+const SUPA_KEY = "sb_publishable_VcQ-zNBNcgl5rQf_MIiP3Q_hOiowtfD";  // chiave PUBBLICA (publishable)
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const leggi = (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); } catch (e) { return def; } };
+const scrivi = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const nuovoId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+const urlFoto = p => SUPA_URL + "/storage/v1/object/public/cantieri/" + p.split("/").map(encodeURIComponent).join("/");
+
+const daLink = new URLSearchParams(location.hash.slice(1)).get("o");
+if (daLink) scrivi("cantieri-o", daLink);
+const O = daLink || leggi("cantieri-o", "");
+if (O && !daLink) history.replaceState(null, "", location.pathname + location.search + "#o=" + encodeURIComponent(O));
+if (O) {  // Android: «Aggiungi a schermata Home» tiene il codice
+  const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
+  const man = {name: "I miei lavori", short_name: "Lavori", start_url: base + "operaio.html#o=" + encodeURIComponent(O),
+    scope: base, display: "standalone", background_color: "#1d2b44", theme_color: "#1d2b44", lang: "it",
+    icons: [{src: base + "icona-192.png", sizes: "192x192", type: "image/png"}, {src: base + "icona-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable"}]};
+  const l = document.createElement("link"); l.rel = "manifest";
+  l.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
+  document.head.appendChild(l);
+}
+
+async function chiama(percorso, opz = {}) {
+  const r = await fetch(SUPA_URL + percorso, Object.assign({}, opz, {headers: Object.assign({apikey: SUPA_KEY}, opz.headers || {})}));
+  if (!r.ok) { const e = new Error(r.status + " " + await r.text()); e.stato = r.status; throw e; }
+  const txt = await r.text(); return txt ? JSON.parse(txt) : null;
+}
+const rpc = (nome, corpo) => chiama("/rest/v1/rpc/" + nome, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
+
+let dati = leggi("cantieri-o-dati", null);   // ultima copia: si vede anche senza rete
+let inCorso = {};                            // id → "foto" / "fatto" mentre si invia
+
+function msg(testo, err) { $("msg").innerHTML = testo ? `<div class="avviso${err ? " err" : ""}">${testo}</div>` : ""; }
+
+function giorni(d) {
+  if (!d) return null;
+  const oggi = new Date(); oggi.setHours(0, 0, 0, 0);
+  return Math.round((new Date(d + "T00:00:00") - oggi) / 864e5);
+}
+function urgenza(x) {
+  if (x.s === 2) return ["f", "✓ Fatto", "lo controlla il responsabile"];
+  const n = giorni(x.d), data = x.d ? x.d.split("-").reverse().slice(0, 2).join("/") : "";
+  if (n === null) return ["g", "Senza scadenza", ""];
+  const cl = n <= 2 ? "r" : n <= 7 ? "o" : "g";
+  const txt = n < 0 ? `⚠ SCADUTA da ${-n} ${-n === 1 ? "giorno" : "giorni"}` : n === 0 ? "⚠ Da fare OGGI" : n === 1 ? "⚠ Da fare DOMANI" : `Tra ${n} giorni`;
+  return [cl, txt, "entro il " + data];
+}
+
+function scheda(x) {
+  const [cl, txt, quando] = urgenza(x), occ = inCorso[x.id];
+  const foto = (x.foto || []).map(f => `<a href="${urlFoto(f.p)}" target="_blank" rel="noopener"><img src="${urlFoto(f.p)}" alt="foto" loading="lazy"></a>`).join("");
+  const chi = (x.ps || []).length ? `Responsabile: ${esc(x.ps.join(", "))}` : "";
+  const fatto = x.s === 2;
+  return `<div class="cd">
+    <div class="urg ${cl}"><span>${txt}</span><span>${esc(quando)}</span></div>
+    <div class="corpo">
+      <div class="ca">${esc(x.ca || "Cantiere")}${x.pr ? `<span class="pr">${esc(x.pr)}</span>` : ""}</div>
+      <div class="t">${esc(x.t)}</div>
+      ${x.nt ? `<div class="nt">📝 ${esc(x.nt)}</div>` : ""}
+      ${chi ? `<div class="chi">${chi}</div>` : ""}
+      ${foto ? `<div class="foto">${foto}</div>` : ""}
+    </div>
+    ${occ ? `<div class="inv">${occ === "foto" ? "Invio foto…" : "Salvataggio…"}</div>` : ""}
+    <div class="bt">
+      <label class="ph${occ || !navigator.onLine ? " off" : ""}"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Foto
+        <input type="file" accept="image/*" multiple data-foto="${esc(x.id)}"></label>
+      ${fatto ? `<button type="button" class="an" data-annulla="${esc(x.id)}"${occ ? " disabled" : ""}>Annulla</button>`
+              : `<button type="button" class="ok" data-fatto="${esc(x.id)}"${occ ? " disabled" : ""}><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Fatto</button>`}
+    </div>
+  </div>`;
+}
+
+function disegna() {
+  if (!dati) { $("lista").innerHTML = ""; return; }
+  $("titolo").firstChild.textContent = "Ciao " + dati.nome;
+  const righe = dati.righe || [];
+  const daFare = righe.filter(x => x.s < 2), fatte = righe.filter(x => x.s === 2);
+  $("sotto").textContent = daFare.length ? `${daFare.length} ${daFare.length === 1 ? "cosa da fare" : "cose da fare"}, la più urgente in alto` : "Niente da fare";
+  let h = daFare.length ? daFare.map(scheda).join("") : `<div class="vuoto">Nessun lavoro da fare 👍</div>`;
+  if (fatte.length) h += `<h2>Fatte, da controllare (${fatte.length})</h2>` + fatte.map(scheda).join("");
+  $("lista").innerHTML = h;
+  $("piede").textContent = dati.quando ? "Aggiornato alle " + new Date(dati.quando).toLocaleTimeString("it-IT", {hour: "2-digit", minute: "2-digit"}) : "";
+}
+
+async function carica() {
+  if (!O) { msg("Manca il codice nel link: chiedi a Eric il tuo link.", true); return; }
+  if (!navigator.onLine) { msg("Senza rete: vedi l'ultimo elenco scaricato."); disegna(); return; }
+  try {
+    const r = await rpc("operaio_elenco", {o: O});
+    const ordina = (a, b) => (a.d || "9999").localeCompare(b.d || "9999");
+    dati = {nome: r.nome, righe: (r.righe || []).sort(ordina), quando: Date.now()};
+    scrivi("cantieri-o-dati", dati); msg("");
+  } catch (e) {
+    msg(/codice/.test(e.message) ? "Il link non è valido: chiedi a Eric il tuo link." : "Non riesco a scaricare l'elenco. Controlla la rete e premi ↻ in alto.", true);
+  }
+  disegna();
+}
+
+async function riduci(file) {  // foto ridotte a 1600 px in JPEG (~300 KB): veloci da mandare anche in cantiere
+  const img = await createImageBitmap(file);
+  const s = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return await new Promise((ok, no) => c.toBlob(b => b ? ok(b) : no(new Error("foto")), "image/jpeg", 0.82));
+}
+
+async function mandaFoto(id, files) {
+  inCorso[id] = "foto"; disegna();
+  let fatte = 0, errori = 0;
+  for (const f of files) {
+    try {
+      const blob = await riduci(f);
+      const p = `${id}/${nuovoId()}.jpg`;
+      await chiama("/storage/v1/object/cantieri/" + p.split("/").map(encodeURIComponent).join("/"),
+                   {method: "POST", body: blob, headers: {"Content-Type": "image/jpeg"}});
+      await rpc("operaio_foto", {o: O, vid: id, percorso: p});
+      fatte++;
+    } catch (e) { errori++; }
+  }
+  delete inCorso[id];
+  msg(errori ? `${errori} ${errori === 1 ? "foto non mandata" : "foto non mandate"}: controlla la rete e riprova.` : "", !!errori);
+  if (fatte) await carica(); else disegna();
+}
+
+async function segna(id, fatto) {
+  inCorso[id] = "fatto"; disegna();
+  try {
+    await rpc("operaio_fatto", {o: O, vid: id, fatto});
+    delete inCorso[id]; await carica();
+  } catch (e) {
+    delete inCorso[id]; msg("Non salvato: controlla la rete e riprova.", true); disegna();
+  }
+}
+
+$("lista").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.fatto) segna(b.dataset.fatto, true);
+  if (b.dataset.annulla) segna(b.dataset.annulla, false);
+});
+$("lista").addEventListener("change", e => {
+  const i = e.target; if (!i.dataset.foto || !i.files.length) return;
+  mandaFoto(i.dataset.foto, [...i.files]); i.value = "";
+});
+$("aggiorna").addEventListener("click", carica);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !Object.keys(inCorso).length) carica(); });
+addEventListener("online", carica); addEventListener("offline", () => { msg("Senza rete: vedi l'ultimo elenco scaricato."); disegna(); });
+
+disegna(); carica();
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>

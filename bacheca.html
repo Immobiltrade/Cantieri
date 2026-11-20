@@ -84,6 +84,7 @@ button.pri:hover{background:var(--blue-ink)}
 .dl,.ex{display:block;margin-top:3px;font-size:11px}
 .dl{font-weight:600;font-variant-numeric:tabular-nums}
 .ex{opacity:.9;white-space:pre-wrap}
+.ft{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}.ft a{display:block;width:40px;height:40px;border-radius:5px;overflow:hidden;background:rgba(0,0,0,.08)}.ft img{width:100%;height:100%;object-fit:cover;display:block}
 .lk{display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:10px;font-weight:600;background:var(--violet-bg);color:var(--violet-ink);border-radius:4px;padding:1px 5px}
 .cd.ok .lk,.cd.al .lk{background:rgba(255,255,255,.25);color:#fff}
 .ic{display:flex;justify-content:flex-end;gap:2px;margin-top:4px;border-top:1px solid rgba(0,0,0,.08);padding-top:2px}
@@ -221,7 +222,9 @@ const body=x=>({id:x.id,ca:x.ca||'',pr:x.pr||'',t:x.t,ps:x.ps.slice(),s:x.s,ex:x
 function save(x){write(x.id,body(x))}
 
 function txt(x){const tag0=x.ca?'<span class="tg">'+esc(x.ca)+'</span>':'';if(x.pr)return tag0+'<span class="ow">'+esc(x.pr)+'</span><br>'+esc(x.t);const t=esc(x.t);const m=t.match(/^([A-ZÀ-Ú]{3,}(?:\s[A-Z0-9](?=\s[A-ZÀ-Ú]))?)\s+(.*)$/);const tag=x.ca?'<span class="tg">'+esc(x.ca)+'</span>':'';return tag+(m?'<span class="ow">'+m[1]+'</span><br>'+m[2]:'<br>'+t)}
-function extra(x){let s='';if(x.ex)s+='<span class="ex">'+svg('i-tool')+' '+esc(x.ex)+'</span>';if(x.nt)s+='<span class="ex">'+svg('i-note')+' '+esc(x.nt)+'</span>';return s}
+function extra(x){let s='';if(x.ex)s+='<span class="ex">'+svg('i-tool')+' '+esc(x.ex)+'</span>';if(x.nt)s+='<span class="ex">'+svg('i-note')+' '+esc(x.nt)+'</span>';if(x.fatto_da&&x.s===2)s+='<span class="ex"><b>✓ Fatto da '+esc(x.fatto_da)+(x.fatto_il?' il '+fmt(x.fatto_il.slice(0,10)):'')+'</b></span>';if(x.foto&&x.foto.length)s+='<span class="ft">'+x.foto.map(f=>'<a href="'+urlFoto(f.p)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="'+urlFoto(f.p)+'" alt="foto" loading="lazy"></a>').join('')+'</span>';return s}
+// foto mandate da chi esegue (pagina operaio.html, Eric 20/11/2026): bucket pubblico «cantieri»
+function urlFoto(p){return SUPA_URL+'/storage/v1/object/public/cantieri/'+String(p).split('/').map(encodeURIComponent).join('/')}
 function iconBtn(id,label,fn){const b=document.createElement('button');b.type='button';b.innerHTML=svg(id,'');b.title=label;b.setAttribute('aria-label',label);b.onclick=e=>{e.stopPropagation();fn()};return b}
 
 function card(x,owner){
@@ -312,7 +315,7 @@ $('newForm').addEventListener('submit',e=>{e.preventDefault();
 ['et','ed2'].forEach(k=>$(k).addEventListener('input',()=>$('eerr').textContent=''));
 setInterval(()=>{if(!drag&&!delAsk)render()},10*60*1000);
 
-function dalServer(v){return{id:v.id,ca:v.ca||'',pr:v.pr||'',t:String(v.t||''),ps:Array.isArray(v.ps)?v.ps.filter(p=>P.includes(p)):[],s:Math.max(0,Math.min(3,Number(v.s)||0)),ex:v.ex||'',nt:v.nt||'',d:v.d||todayIso(),creata:v.creata||''}}
+function dalServer(v){return{id:v.id,ca:v.ca||'',pr:v.pr||'',t:String(v.t||''),ps:Array.isArray(v.ps)?v.ps.filter(p=>P.includes(p)):[],s:Math.max(0,Math.min(3,Number(v.s)||0)),ex:v.ex||'',nt:v.nt||'',d:v.d||todayIso(),creata:v.creata||'',foto:Array.isArray(v.foto)?v.foto:[],fatto_da:v.fatto_da||'',fatto_il:v.fatto_il||''}}
 let tCarica=0,primaVolta=true;
 async function carica(){
   clearTimeout(tCarica);
