@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Assegna priorità</title>
+<link rel="icon" href="icona-192.png">
+<style>
+/* «Assegna priorità» (Eric 20/11/2026): i tecnici scelgono chi esegue e trascinano le sue cose; in alto = più urgente.
+   L'ordine si salva da solo (colonna pri, funzione cantieri_priorita) e l'app dell'operaio lo segue.
+   Trascinamento con SortableJS (cdn); le frecce ↑ ↓ funzionano anche senza. */
+:root{color-scheme:light;
+  --bg:#FFFFFF;--panel:#F4F3EF;--ink:#2C2C2A;--ink2:#5F5E5A;--ink3:#888780;--line:rgba(0,0,0,.12);--line2:rgba(0,0,0,.22);
+  --blue:#185FA5;--blue-bg:#E6F1FB;--green:#3B6D11;--green-bg:#EAF3DE;--red:#A32D2D;--red-bg:#FCEBEB;
+  --amber:#854F0B;--amber-bg:#FAEEDA;--violet-bg:#EEEDFE;--violet-ink:#3C3489;--navy:#1d2b44;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);overflow-x:hidden}
+body{font:15px/1.4 var(--font);padding:16px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:760px;margin:0 auto}
+.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:21px;margin:0;flex:1}
+a.back{color:var(--blue);text-decoration:none;font-weight:600;font-size:14px}
+.save{font-size:13px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.save .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.save.busy .dot{background:#EF9F27}.save.err .dot{background:#E24B4A}.save.err{color:var(--red)}
+.spiega{color:var(--ink2);font-size:14px;margin:0 0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.chip{border:1.5px solid var(--line2);background:#fff;border-radius:999px;padding:8px 14px;font:600 15px var(--font);color:var(--ink);cursor:pointer}
+.chip small{font-weight:500;color:var(--ink3);margin-left:4px}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}.chip.on small{color:rgba(255,255,255,.7)}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.bar h2{font-size:17px;margin:0;flex:1}
+.bar button{border:1px solid var(--line2);background:#fff;border-radius:8px;padding:7px 12px;font:500 13px var(--font);color:var(--ink2);cursor:pointer}
+.err{color:var(--red);font-size:14px;margin:8px 0}
+.vuoto{color:var(--ink3);text-align:center;padding:28px 8px;border:1px dashed var(--line2);border-radius:12px}
+ol{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid var(--line);border-radius:12px;margin:0 0 8px;
+  overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+li .n{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--panel);
+  font-weight:800;font-size:19px;color:var(--navy);cursor:grab;gap:2px}
+li .n svg{width:18px;height:18px;color:var(--ink3)}
+li:first-child .n{background:var(--red-bg);color:var(--red)}
+li .c{flex:1;padding:9px 12px;min-width:0}
+li .top{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ca{font-weight:800;letter-spacing:.02em}
+.pr{background:var(--panel);border-radius:5px;padding:0 6px;font-size:12px;font-weight:700}
+.nuova{background:var(--violet-bg);color:var(--violet-ink);border-radius:5px;padding:0 6px;font-size:11px;font-weight:700}
+.t{margin:3px 0 2px}
+.info{font-size:12.5px;color:var(--ink2)}
+.sc{font-weight:600}.sc.r{color:var(--red)}.sc.o{color:var(--amber)}.sc.g{color:var(--green)}
+li .fr{display:flex;flex-direction:column;border-left:1px solid var(--line)}
+li .fr button{flex:1;width:46px;border:0;background:#fff;font-size:18px;color:var(--ink2);cursor:pointer}
+li .fr button+button{border-top:1px solid var(--line)}
+li .fr button:disabled{opacity:.25}
+.ghost{opacity:.35}.scelto{box-shadow:0 8px 24px rgba(0,0,0,.18);border-color:var(--navy)}
+.piede{font-size:12.5px;color:var(--ink3);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>Assegna priorità</h1>
+    <a class="back" id="back" href="bacheca.html">‹ Bacheca</a>
+    <span class="save" id="save"><span class="dot"></span><span id="saveTxt">Collegamento…</span></span>
+  </div>
+  <p class="spiega">Scegli <b>chi esegue</b>, poi trascina le sue cose: <b>in alto la più urgente</b>. L'ordine si salva da solo
+    e l'operaio lo vede così nella sua app. Le cose arrivate dopo l'ultimo ordine sono segnate <span class="nuova">NUOVA</span> e stanno in fondo.</p>
+  <div class="chips" id="chips"></div>
+  <div id="err" class="err"></div>
+  <div id="area"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+const SUPA_URL="https://miyheufkwfdrlzgqglyk.supabase.co";
+const SUPA_KEY="sb_publishable_VcQ-zNBNcgl5rQf_MIiP3Q_hOiowtfD"; // chiave PUBBLICA
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const kLink=new URLSearchParams(location.hash.slice(1)).get('k');
+if(kLink)lsSet('cantieri-k',JSON.stringify(kLink));
+let K=kLink;if(!K){try{K=JSON.parse(lsGet('cantieri-k')||'""')}catch(e){K=''}}
+if(K&&!kLink)history.replaceState(null,'',location.pathname+'#k='+encodeURIComponent(K));
+$('back').href='bacheca.html#k='+encodeURIComponent(K||'');
+async function rpc(nome,corpo){
+  const r=await fetch(SUPA_URL+'/rest/v1/rpc/'+nome,{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify(Object.assign({k:K},corpo))});
+  if(!r.ok){const e=new Error(r.status+' '+await r.text());e.stato=r.status;throw e}
+  const t=await r.text();return t?JSON.parse(t):null;
+}
+// «MUSTA 1+ 2», «musta» → Musta (stessa regola dell'app operaio e del PDF)
+function esecutore(ex){const m=String(ex||'').match(/[A-Za-zÀ-ÿ']+/);if(!m)return'';const p=m[0];return p.length<=3?p.toUpperCase():p[0].toUpperCase()+p.slice(1).toLowerCase()}
+const gg=d=>{if(!d)return null;const o=new Date();o.setHours(0,0,0,0);return Math.round((new Date(d+'T00:00:00')-o)/864e5)};
+const fmt=d=>d?d.split('-').reverse().slice(0,2).join('/'):'';
+const ordina=(a,b)=>((a.pri==null)-(b.pri==null))||((a.pri||0)-(b.pri||0))||String(a.d||'9999').localeCompare(String(b.d||'9999'))||String(a.creata||'').localeCompare(String(b.creata||''));
+
+let righe=[],scelto=lsGet('cantieri-priorita-ex')||'',ordine=[],sortable=null,tSalva=0,inSalvataggio=false;
+function stato(cl,t){$('save').className='save '+cl;$('saveTxt').textContent=t}
+
+async function carica(){
+  if(!K){$('err').textContent='Manca il codice nel link: apri questa pagina dalla bacheca o dalla piattaforma.';stato('err','Senza codice');return}
+  try{righe=(await rpc('cantieri_elenco',{})||[]).filter(x=>Number(x.s)<2&&esecutore(x.ex));stato('','Collegato');$('err').textContent=''}
+  catch(e){$('err').textContent=/codice/.test(e.message)?'Il codice nel link non è valido.':'Non riesco a leggere le segnalazioni: controlla la rete e ricarica.';stato('err','Errore');return}
+  disegnaChips();disegna();
+}
+function disegnaChips(){
+  const conta={};righe.forEach(x=>{const e=esecutore(x.ex);conta[e]=(conta[e]||0)+1});
+  const nomi=Object.keys(conta).sort((a,b)=>conta[b]-conta[a]||a.localeCompare(b));
+  if(!nomi.includes(scelto))scelto='';
+  $('chips').innerHTML=nomi.map(n=>'<button type="button" class="chip'+(n===scelto?' on':'')+'" data-n="'+esc(n)+'">'+esc(n)+'<small>'+conta[n]+'</small></button>').join('')
+    ||'<span class="info">Nessuna cosa da fare con «Chi esegue» compilato.</span>';
+}
+function disegna(){
+  if(sortable){sortable.destroy();sortable=null}
+  if(!scelto){$('area').innerHTML='<div class="vuoto">Scegli qui sopra chi esegue il lavoro.</div>';return}
+  const sue=righe.filter(x=>esecutore(x.ex)===scelto).sort(ordina);
+  ordine=sue.map(x=>x.id);
+  const quando=sue.filter(x=>x.pri_il).map(x=>x.pri_il).sort().pop();
+  $('area').innerHTML='<div class="bar"><h2>Cose di '+esc(scelto)+' ('+sue.length+')</h2>'
+    +'<button type="button" id="perScadenza">Rimetti in ordine di scadenza</button></div>'
+    +'<ol id="lista">'+sue.map(riga).join('')+'</ol>'
+    +'<div class="piede">'+(quando?'Ultimo ordine salvato il '+new Date(quando).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Ordine non ancora deciso: ora è per scadenza.')+'</div>';
+  numeri();
+  if(window.Sortable)sortable=Sortable.create($('lista'),{animation:150,delay:120,delayOnTouchOnly:true,ghostClass:'ghost',chosenClass:'scelto',
+    filter:'.fr',preventOnFilter:false,onEnd:()=>{ordine=[...$('lista').children].map(li=>li.dataset.id);numeri();salva()}});
+}
+function riga(x){
+  const n=gg(x.d),cl=n===null?'':n<=2?'r':n<=7?'o':'g';
+  const sc=n===null?'senza scadenza':n<0?'scaduta da '+(-n)+' gg':n===0?'scade oggi':n===1?'scade domani':'tra '+n+' gg';
+  return '<li data-id="'+esc(x.id)+'"><div class="n"><span class="num"></span><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></div>'
+    +'<div class="c"><div class="top"><span class="ca">'+esc(x.ca||'Cantiere')+'</span>'+(x.pr?'<span class="pr">'+esc(x.pr)+'</span>':'')
+    +(x.pri==null?'<span class="nuova">NUOVA</span>':'')+'</div><div class="t">'+esc(x.t)+'</div>'
+    +'<div class="info"><span class="sc '+cl+'">'+(x.d?fmt(x.d)+' · ':'')+sc+'</span>'+((x.ps||[]).length?' · Resp. '+esc(x.ps.join(', ')):'')+(Number(x.s)===1?' · in lavorazione':'')+'</div></div>'
+    +'<div class="fr"><button type="button" data-su="'+esc(x.id)+'" aria-label="Più urgente">↑</button><button type="button" data-giu="'+esc(x.id)+'" aria-label="Meno urgente">↓</button></div></li>';
+}
+function numeri(){const l=$('lista');if(!l)return;[...l.children].forEach((li,i)=>{li.querySelector('.num').textContent=i+1;
+  li.querySelector('[data-su]').disabled=i===0;li.querySelector('[data-giu]').disabled=i===l.children.length-1})}
+function sposta(id,d){const l=$('lista'),li=l.querySelector('li[data-id="'+CSS.escape(id)+'"]');if(!li)return;
+  if(d<0&&li.previousElementSibling)l.insertBefore(li,li.previousElementSibling);
+  if(d>0&&li.nextElementSibling)l.insertBefore(li.nextElementSibling,li);
+  ordine=[...l.children].map(x=>x.dataset.id);numeri();salva()}
+function salva(){clearTimeout(tSalva);stato('busy','Salvataggio…');tSalva=setTimeout(manda,500)}
+async function manda(){
+  if(inSalvataggio){tSalva=setTimeout(manda,300);return}
+  inSalvataggio=true;const ids=ordine.slice();
+  try{await rpc('cantieri_priorita',{ids});const ora=new Date().toISOString();
+    righe.forEach(x=>{const i=ids.indexOf(x.id);if(i>=0){x.pri=i+1;x.pri_il=ora}});
+    document.querySelectorAll('#lista .nuova').forEach(e=>e.remove());stato('','Salvato')}
+  catch(e){stato('err','Non salvato');$('err').textContent='Ordine non salvato: controlla la rete e riprova a spostare una riga.'}
+  finally{inSalvataggio=false}
+}
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;scelto=b.dataset.n;lsSet('cantieri-priorita-ex',scelto);disegnaChips();disegna()});
+$('area').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.su)sposta(b.dataset.su,-1);if(b.dataset.giu)sposta(b.dataset.giu,1);
+  if(b.id==='perScadenza'){const sue=righe.filter(x=>esecutore(x.ex)===scelto).sort((a,c)=>String(a.d||'9999').localeCompare(String(c.d||'9999')));
+    const l=$('lista');sue.forEach(x=>l.appendChild(l.querySelector('li[data-id="'+CSS.escape(x.id)+'"]')));ordine=sue.map(x=>x.id);numeri();salva()}
+});
+carica();
+</script>
+</body>
+</html>

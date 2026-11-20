@@ -125,6 +125,7 @@ button.pri:hover{background:var(--blue-ink)}
   <h1>Cose da finire cantieri</h1>
   <span class="sub" id="today"></span>
   <a class="app" id="app" href="index.html">+ Da telefono</a>
+  <a class="app" id="pri" href="priorita.html">↕ Assegna priorità</a>
   <span class="save" id="save"><span class="dot"></span><span id="saveTxt">Collegamento…</span></span>
 </div>
 
@@ -191,7 +192,7 @@ const kLink=new URLSearchParams(location.hash.slice(1)).get('k');
 if(kLink)lsSet('cantieri-k',JSON.stringify(kLink));
 let K=kLink;if(!K){try{K=JSON.parse(lsGet('cantieri-k')||'""')}catch(e){K=''}}
 if(K&&!kLink)history.replaceState(null,'',location.pathname+'#k='+encodeURIComponent(K));
-$('app').href='index.html#k='+encodeURIComponent(K||'');
+$('app').href='index.html#k='+encodeURIComponent(K||'');$('pri').href='priorita.html#k='+encodeURIComponent(K||'');
 async function rpc(nome,corpo){
   const r=await fetch(SUPA_URL+'/rest/v1/rpc/'+nome,{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify(Object.assign({k:K},corpo))});
   if(!r.ok){const e=new Error(r.status+' '+await r.text());e.stato=r.status;throw e}

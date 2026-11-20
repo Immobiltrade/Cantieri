@@ -133,8 +133,9 @@ function urgenza(x) {
   return [cl, txt, "entro il " + data];
 }
 
-function scheda(x) {
-  const [cl, txt, quando] = urgenza(x), occ = inCorso[x.id];
+function scheda(x, i) {
+  const [cl, txt0, quando] = urgenza(x), occ = inCorso[x.id];
+  const txt = (x.s < 2 && i !== undefined ? `N. ${i + 1} · ` : "") + txt0;
   const foto = (x.foto || []).map(f => `<a href="${urlFoto(f.p)}" target="_blank" rel="noopener"><img src="${urlFoto(f.p)}" alt="foto" loading="lazy"></a>`).join("");
   const chi = (x.ps || []).length ? `Responsabile: ${esc(x.ps.join(", "))}` : "";
   const fatto = x.s === 2;
@@ -164,9 +165,9 @@ function disegna() {
   $("titolo").firstChild.textContent = "Ciao " + dati.nome;
   const righe = dati.righe || [];
   const daFare = righe.filter(x => x.s < 2), fatte = righe.filter(x => x.s === 2);
-  $("sotto").textContent = daFare.length ? `${daFare.length} ${daFare.length === 1 ? "cosa da fare" : "cose da fare"}, la più urgente in alto` : "Niente da fare";
-  let h = daFare.length ? daFare.map(scheda).join("") : `<div class="vuoto">Nessun lavoro da fare 👍</div>`;
-  if (fatte.length) h += `<h2>Fatte, da controllare (${fatte.length})</h2>` + fatte.map(scheda).join("");
+  $("sotto").textContent = daFare.length ? `${daFare.length} ${daFare.length === 1 ? "cosa da fare" : "cose da fare"}, in ordine: la N. 1 è la più urgente` : "Niente da fare";
+  let h = daFare.length ? daFare.map((x, i) => scheda(x, i)).join("") : `<div class="vuoto">Nessun lavoro da fare 👍</div>`;
+  if (fatte.length) h += `<h2>Fatte, da controllare (${fatte.length})</h2>` + fatte.map(x => scheda(x)).join("");
   $("lista").innerHTML = h;
   $("piede").textContent = dati.quando ? "Aggiornato alle " + new Date(dati.quando).toLocaleTimeString("it-IT", {hour: "2-digit", minute: "2-digit"}) : "";
 }
@@ -176,7 +177,8 @@ async function carica() {
   if (!navigator.onLine) { msg("Senza rete: vedi l'ultimo elenco scaricato."); disegna(); return; }
   try {
     const r = await rpc("operaio_elenco", {o: O});
-    const ordina = (a, b) => (a.d || "9999").localeCompare(b.d || "9999");
+    // prima l'ordine deciso dai tecnici («Assegna priorità», pri 1 = più urgente), poi le nuove per scadenza
+    const ordina = (a, b) => ((a.pri == null) - (b.pri == null)) || ((a.pri || 0) - (b.pri || 0)) || (a.d || "9999").localeCompare(b.d || "9999");
     dati = {nome: r.nome, righe: (r.righe || []).sort(ordina), quando: Date.now()};
     scrivi("cantieri-o-dati", dati); msg("");
   } catch (e) {
