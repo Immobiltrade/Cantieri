@@ -12,6 +12,7 @@
 <title>I miei lavori</title>
 <style>
 /* Pagina per chi esegue (Eric 20/11/2026): solo le SUE cose, dalla più urgente; «Fatto» e foto.
+   «Scatta foto» = fotocamera diretta (capture): su Android con «multiple» si apriva solo la galleria.
    Pulsanti grandi, poche parole. Niente librerie esterne: si apre subito. */
 :root {
   --bg: #f3f4f7; --card: #ffffff; --fg: #1d2b44; --muted: #5f6a82; --line: #dce0e8; --chip: #eceef3;
@@ -56,12 +57,13 @@ h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: v
 .foto { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px }
 .foto a { display: block; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: var(--chip) }
 .foto img { width: 100%; height: 100%; object-fit: cover; display: block }
-.bt { display: flex; gap: 10px; padding: 10px 14px 14px }
+.bt { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 14px 14px }
+.bt .ok, .bt .an { flex: 1 0 100% !important }
 .bt button, .bt label { flex: 1; height: 54px; border-radius: 12px; border: 0; font: 700 17px var(--font);
   display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer }
 .ph { background: var(--chip); color: var(--fg) }
 .ok { background: var(--ok); color: #fff }
-.an { background: var(--chip); color: var(--fg); flex: 0 0 auto !important; padding: 0 18px }
+.an { background: var(--chip); color: var(--fg) }
 .bt input { display: none }
 button:disabled, label.off { opacity: .45; pointer-events: none }
 .inv { color: var(--muted); font-size: 14px; padding: 0 14px 8px }
@@ -147,9 +149,11 @@ function scheda(x) {
     </div>
     ${occ ? `<div class="inv">${occ === "foto" ? "Invio foto…" : "Salvataggio…"}</div>` : ""}
     <div class="bt">
-      <label class="ph${occ || !navigator.onLine ? " off" : ""}"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Foto
+      <label class="ph${occ || !navigator.onLine ? " off" : ""}"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Scatta foto
+        <input type="file" accept="image/*" capture="environment" data-foto="${esc(x.id)}"></label>
+      <label class="ph${occ || !navigator.onLine ? " off" : ""}"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M20 16l-5-5-9 8.5"/></svg>Galleria
         <input type="file" accept="image/*" multiple data-foto="${esc(x.id)}"></label>
-      ${fatto ? `<button type="button" class="an" data-annulla="${esc(x.id)}"${occ ? " disabled" : ""}>Annulla</button>`
+      ${fatto ? `<button type="button" class="an" data-annulla="${esc(x.id)}"${occ ? " disabled" : ""}>Annulla «Fatto»</button>`
               : `<button type="button" class="ok" data-fatto="${esc(x.id)}"${occ ? " disabled" : ""}><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Fatto</button>`}
     </div>
   </div>`;
