@@ -114,6 +114,111 @@ async function chiama(percorso, opz = {}) {
 }
 const rpc = (nome, corpo) => chiama("/rest/v1/rpc/" + nome, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
 
+// ================= CALENDARIO (Eric 27/11): COPIA ESATTA di pianifica di finder.html (= immo/calendario_operaio.py).
+// Se cambia lì, ricopiarla qui: così Musta vede le cose nello stesso ordine del calendario.
+const ORARI = [[480, 720], [780, 1020]];       // 8-12 e 13-17
+const GIORNI_LAVORO = new Set([1, 2, 3, 4, 5]); // lun-ven (getDay: domenica = 0)
+const DURATA_STD = 2, PASSO = 15;
+const LIVELLI = {1: "Alta", 2: "Media", 3: "Bassa"};
+const livello = x => { const v = parseInt(x.lv || 2, 10); return [1, 2, 3].includes(v) ? v : 2; };
+const durata = x => { const h = parseFloat(x.du) || 0; return h <= 0 ? [DURATA_STD * 60, true] : [Math.max(PASSO, Math.round(h * 60 / PASSO) * PASSO), false]; };
+const fissato = x => x.inizio ? new Date(x.inizio) : null;
+const mezzanotte = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const alle = (d, m) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, m);
+const minDi = d => d.getHours() * 60 + d.getMinutes();
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const isoOra = d => iso(d) + "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+const domani = d => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+function confronta(a, b) {
+  const ka = [livello(a), a.pri == null ? 1 : 0, a.pri || 0, a.d || "9999", a.creata || ""];
+  const kb = [livello(b), b.pri == null ? 1 : 0, b.pri || 0, b.d || "9999", b.creata || ""];
+  for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
+  return 0;
+}
+function pianifica(righe, adesso) {
+  const aperte = righe.filter(x => (Number(x.s) || 0) < 2);
+  const occ = {};   // giorno → [[da, a], ...] minuti occupati
+  const occupa = (a, b) => {
+    for (let g = mezzanotte(a); g <= b; g = domani(g)) {
+      const i = iso(g) === iso(a) ? minDi(a) : 0, f = iso(g) === iso(b) ? minDi(b) : 1440;
+      if (f > i) (occ[iso(g)] = occ[iso(g)] || []).push([i, f]);
+    }
+  };
+  const liberi = (g, da) => {
+    if (!GIORNI_LAVORO.has(g.getDay())) return [];
+    let pezzi = ORARI.filter(([a, b]) => b > da).map(([a, b]) => [Math.max(a, da), b]);
+    for (const [oa, ob] of (occ[iso(g)] || []).slice().sort((p, q) => p[0] - q[0] || p[1] - q[1])) {
+      const n = [];
+      for (const [a, b] of pezzi) {
+        if (ob <= a || oa >= b) n.push([a, b]);
+        else { if (oa > a) n.push([a, oa]); if (ob < b) n.push([ob, b]); }
+      }
+      pezzi = n;
+    }
+    return pezzi.filter(([a, b]) => b - a >= PASSO);
+  };
+  const riempi = (c, manca) => {
+    const lista = [];
+    for (let k = 0; k < 400 && manca > 0; k++) {
+      const lib = liberi(mezzanotte(c), minDi(c));
+      if (!lib.length) { c = domani(c); continue; }
+      const [a, b] = lib[0];
+      if (b - a < Math.min(manca, 30)) { c = alle(c, b); continue; }   // avanzo di meno di mezz'ora: dopo la pausa
+      const usa = Math.min(manca, b - a), t0 = alle(c, a), t1 = alle(c, a + usa);
+      occupa(t0, t1); lista.push([t0, t1]); manca -= usa; c = t1;
+    }
+    return lista;
+  };
+  const inOrario = t => GIORNI_LAVORO.has(t.getDay()) && ORARI.some(([a, b]) => a <= minDi(t) && minDi(t) < b);
+  const pezzi = {};
+  for (const x of aperte.filter(fissato).sort((a, b) => fissato(a) - fissato(b))) {
+    const a = fissato(x);
+    if (inOrario(a)) pezzi[x.id] = riempi(a, durata(x)[0]);
+    else { const b = new Date(a.getTime() + durata(x)[0] * 60000); occupa(a, b); pezzi[x.id] = [[a, b]]; }
+  }
+  const resto = aperte.filter(x => !fissato(x)).sort(confronta);
+  let cursore = alle(adesso, Math.ceil(minDi(adesso) / PASSO) * PASSO), ultimoCa = null;
+  const liberoOggi = c => liberi(mezzanotte(c), minDi(c)).reduce((s, [a, b]) => s + b - a, 0);
+  const primoLibero = c => {
+    for (let k = 0; k < 400; k++) {
+      const lib = liberi(mezzanotte(c), minDi(c));
+      if (lib.length) return alle(c, lib[0][0]);
+      c = domani(c);
+    }
+    return c;
+  };
+  while (resto.length) {
+    cursore = primoLibero(cursore);
+    const testa = resto[0];
+    const stesso = ultimoCa ? resto.filter(x => (x.ca || "") === ultimoCa) : [];
+    let scelta = testa;
+    if (stesso.length && livello(stesso[0]) === livello(testa)) scelta = stesso[0];
+    else if (stesso.length && liberoOggi(cursore) < durata(testa)[0]) {
+      const entra = stesso.filter(x => durata(x)[0] <= liberoOggi(cursore));
+      if (entra.length) scelta = entra[0];
+    }
+    resto.splice(resto.indexOf(scelta), 1);
+    const manca = durata(scelta)[0];
+    if (manca > liberoOggi(cursore) && liberoOggi(cursore) < 60 && manca <= 480) cursore = primoLibero(domani(cursore));
+    const lista = riempi(cursore, manca);
+    pezzi[scelta.id] = lista;
+    if (lista.length) cursore = lista[lista.length - 1][1];
+    ultimoCa = scelta.ca || "";
+  }
+  const out = [];
+  for (const x of aperte) {
+    const lista = pezzi[x.id] || [];
+    const [minuti, stimata] = durata(x);
+    const fine = lista.length ? lista[lista.length - 1][1] : null;
+    const oltre = !!(x.d && fine && iso(fine) > x.d);
+    lista.forEach(([a, b], n) => out.push({id: x.id, inizio: isoOra(a), fine: isoOra(b), a, b, parte: n + 1, parti: lista.length,
+      fissato: !!fissato(x), ca: x.ca || "", pr: x.pr || "", t: String(x.t || ""), nt: String(x.nt || ""), d: x.d || "",
+      lv: livello(x), ore: minuti / 60, stimata, oltre}));
+  }
+  return out.sort((p, q) => p.a - q.a);
+}
+
+
 let dati = leggi("cantieri-o-dati", null);   // ultima copia: si vede anche senza rete
 let inCorso = {};                            // id → "foto" / "fatto" mentre si invia
 
@@ -133,9 +238,24 @@ function urgenza(x) {
   return [cl, txt, "entro il " + data];
 }
 
-function scheda(x, i) {
+const hm = d => d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+const GIORNO = ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"];
+const MESE = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+function nomeGiorno(d) {
+  const n = Math.round((mezzanotte(d) - mezzanotte(new Date())) / 864e5);
+  const data = `${GIORNO[d.getDay()]} ${d.getDate()} ${MESE[d.getMonth()]}`;
+  return n === 0 ? "Oggi · " + data : n === 1 ? "Domani · " + data : n < 0 ? "Da fare (in ritardo)" : data;
+}
+
+function scheda(x, i, pz) {
   const [cl, txt0, quando] = urgenza(x), occ = inCorso[x.id];
-  const txt = (x.s < 2 && i !== undefined ? `N. ${i + 1} · ` : "") + txt0;
+  // Eric 27/11: N. e orario del calendario (pz = pezzi del calendario di questa cosa), a destra la scadenza come prima
+  let ore = "";
+  if (pz && pz.length) {
+    const a = pz[0].a, b = pz[pz.length - 1].b;
+    ore = iso(a) === iso(b) ? ` · ${hm(a)}–${hm(b)}` : ` · dalle ${hm(a)}, continua ${iso(b) === iso(domani(a)) ? "domani" : GIORNO[b.getDay()]}`;
+  }
+  const txt = (x.s < 2 && i !== undefined ? `N. ${i + 1}${ore} · ` : "") + txt0;
   const foto = (x.foto || []).map(f => `<a href="${urlFoto(f.p)}" target="_blank" rel="noopener"><img src="${urlFoto(f.p)}" alt="foto" loading="lazy"></a>`).join("");
   const chi = (x.ps || []).length ? `Responsabile: ${esc(x.ps.join(", "))}` : "";
   const fatto = x.s === 2;
@@ -165,8 +285,19 @@ function disegna() {
   $("titolo").firstChild.textContent = "Ciao " + dati.nome;
   const righe = dati.righe || [];
   const daFare = righe.filter(x => x.s < 2), fatte = righe.filter(x => x.s === 2);
-  $("sotto").textContent = daFare.length ? `${daFare.length} ${daFare.length === 1 ? "cosa da fare" : "cose da fare"}, in ordine: la N. 1 è la più urgente` : "Niente da fare";
-  let h = daFare.length ? daFare.map((x, i) => scheda(x, i)).join("") : `<div class="vuoto">Nessun lavoro da fare 👍</div>`;
+  $("sotto").textContent = daFare.length ? `${daFare.length} ${daFare.length === 1 ? "cosa da fare" : "cose da fare"}, giorno per giorno` : "Niente da fare";
+  // Eric 27/11: stesso ordine del calendario (Musta Finder), una sotto l'altra; scorrendo si passa ai giorni dopo
+  const pezzi = {};
+  for (const e of pianifica(daFare, new Date())) (pezzi[e.id] = pezzi[e.id] || []).push(e);
+  const quando = x => pezzi[x.id] ? pezzi[x.id][0].a : new Date(8.64e15);
+  daFare.sort((p, q) => quando(p) - quando(q));
+  let h = "", giorno = "";
+  daFare.forEach((x, i) => {
+    const g = pezzi[x.id] ? nomeGiorno(quando(x)) : "";
+    if (g && g !== giorno) { h += `<h2>${g}</h2>`; giorno = g; }
+    h += scheda(x, i, pezzi[x.id]);
+  });
+  if (!daFare.length) h = `<div class="vuoto">Nessun lavoro da fare 👍</div>`;
   if (fatte.length) h += `<h2>Fatte, da controllare (${fatte.length})</h2>` + fatte.map(x => scheda(x)).join("");
   $("lista").innerHTML = h;
   $("piede").textContent = dati.quando ? "Aggiornato alle " + new Date(dati.quando).toLocaleTimeString("it-IT", {hour: "2-digit", minute: "2-digit"}) : "";
