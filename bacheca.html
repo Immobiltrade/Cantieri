@@ -134,6 +134,7 @@ button.pri:hover{background:var(--blue-ink)}
   <label class="fl">Proprietario / app.<input id="pr" placeholder="TREVES" style="width:120px;text-transform:uppercase"></label>
   <label class="fl grow">Problema<input id="t" placeholder="Porta camera da letto che batte"></label>
   <label class="fl">Chi esegue<input id="ex" placeholder="Sami decoratore" style="width:140px"></label>
+  <label class="fl">Durata (ore)<input type="number" id="du" min="0.25" step="0.5" placeholder="es. 2" style="width:90px"></label>
   <label class="fl">Entro il<input type="date" id="d" style="width:150px"></label>
   <button type="submit" class="pri" id="add">+ Nuova segnalazione</button>
 </form>
@@ -146,6 +147,7 @@ button.pri:hover{background:var(--blue-ink)}
     <label class="fl">Proprietario / app.<input id="epr" style="width:120px;text-transform:uppercase"></label>
     <label class="fl grow" style="flex:1;min-width:200px">Problema<input id="et"></label>
     <label class="fl">Chi esegue<input id="eex" style="width:140px"></label>
+    <label class="fl">Durata (ore)<input type="number" id="edu" min="0.25" step="0.5" placeholder="es. 2" style="width:90px"></label>
     <label class="fl">Entro il<input type="date" id="ed2" style="width:150px"></label>
   </div>
   <label class="fl">Dettagli e note<textarea id="ent" placeholder="Es. chiamato Sami il 12/11, viene giovedì mattina. Serve vernice RAL 9010."></textarea></label>
@@ -219,11 +221,11 @@ function fail(e){
   if(e&&/codice/.test(e.message)){readOnly=true;setSave('err','Codice non valido');$('err').textContent='Il codice nel link non è valido: chiedi a Eric il link giusto.'}
   else{setSave('err','Non salvato');$('err').textContent='Modifica non salvata. Controlla la connessione e riprova.'}
 }
-const body=x=>({id:x.id,ca:x.ca||'',pr:x.pr||'',t:x.t,ps:x.ps.slice(),s:x.s,ex:x.ex||'',nt:x.nt||'',d:x.d,creata:x.creata||todayIso()});
+const body=x=>({id:x.id,ca:x.ca||'',pr:x.pr||'',t:x.t,ps:x.ps.slice(),s:x.s,ex:x.ex||'',nt:x.nt||'',d:x.d,creata:x.creata||todayIso(),du:x.du==null||x.du===''?null:Number(x.du)});
 function save(x){write(x.id,body(x))}
 
 function txt(x){const tag0=x.ca?'<span class="tg">'+esc(x.ca)+'</span>':'';if(x.pr)return tag0+'<span class="ow">'+esc(x.pr)+'</span><br>'+esc(x.t);const t=esc(x.t);const m=t.match(/^([A-ZÀ-Ú]{3,}(?:\s[A-Z0-9](?=\s[A-ZÀ-Ú]))?)\s+(.*)$/);const tag=x.ca?'<span class="tg">'+esc(x.ca)+'</span>':'';return tag+(m?'<span class="ow">'+m[1]+'</span><br>'+m[2]:'<br>'+t)}
-function extra(x){let s='';if(x.ex)s+='<span class="ex">'+svg('i-tool')+' '+esc(x.ex)+'</span>';if(x.nt)s+='<span class="ex">'+svg('i-note')+' '+esc(x.nt)+'</span>';if(x.fatto_da&&x.s===2)s+='<span class="ex"><b>✓ Fatto da '+esc(x.fatto_da)+(x.fatto_il?' il '+fmt(x.fatto_il.slice(0,10)):'')+'</b></span>';if(x.foto&&x.foto.length)s+='<span class="ft">'+x.foto.map(f=>'<a href="'+urlFoto(f.p)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="'+urlFoto(f.p)+'" alt="foto" loading="lazy"></a>').join('')+'</span>';return s}
+function extra(x){let s='';if(x.du)s+='<span class="ex">⏱ '+String(x.du).replace('.',',')+' ore</span>';if(x.ex)s+='<span class="ex">'+svg('i-tool')+' '+esc(x.ex)+'</span>';if(x.nt)s+='<span class="ex">'+svg('i-note')+' '+esc(x.nt)+'</span>';if(x.fatto_da&&x.s===2)s+='<span class="ex"><b>✓ Fatto da '+esc(x.fatto_da)+(x.fatto_il?' il '+fmt(x.fatto_il.slice(0,10)):'')+'</b></span>';if(x.foto&&x.foto.length)s+='<span class="ft">'+x.foto.map(f=>'<a href="'+urlFoto(f.p)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="'+urlFoto(f.p)+'" alt="foto" loading="lazy"></a>').join('')+'</span>';return s}
 // foto mandate da chi esegue (pagina operaio.html, Eric 20/11/2026): bucket pubblico «cantieri»
 function urlFoto(p){return SUPA_URL+'/storage/v1/object/public/cantieri/'+String(p).split('/').map(encodeURIComponent).join('/')}
 function iconBtn(id,label,fn){const b=document.createElement('button');b.type='button';b.innerHTML=svg(id,'');b.title=label;b.setAttribute('aria-label',label);b.onclick=e=>{e.stopPropagation();fn()};return b}
@@ -297,12 +299,12 @@ function render(){
   });
 }
 
-function openEdit(id){const x=items.get(id);if(!x)return;edit=id;delAsk=null;$('eca').value=x.ca||'';$('epr').value=x.pr||'';$('et').value=x.t;$('eex').value=x.ex||'';$('ed2').value=x.d||'';$('ent').value=x.nt||'';$('eerr').textContent='';$('ed').hidden=false;render();$('ed').scrollIntoView({behavior:'smooth',block:'start'});$('et').focus({preventScroll:true})}
+function openEdit(id){const x=items.get(id);if(!x)return;edit=id;delAsk=null;$('eca').value=x.ca||'';$('epr').value=x.pr||'';$('et').value=x.t;$('eex').value=x.ex||'';$('ed2').value=x.d||'';$('edu').value=x.du??'';$('ent').value=x.nt||'';$('eerr').textContent='';$('ed').hidden=false;render();$('ed').scrollIntoView({behavior:'smooth',block:'start'});$('et').focus({preventScroll:true})}
 function closeEdit(){edit=null;$('ed').hidden=true;render()}
 $('ed').addEventListener('submit',e=>{e.preventDefault();const x=edit&&items.get(edit);if(!x){closeEdit();return}
   if(!$('et').value.trim()){$('eerr').textContent='Scrivi cosa c\'è da fare';return}
   if(!$('ed2').value){$('eerr').textContent='Scegli una scadenza';return}
-  x.ca=$('eca').value.trim().toUpperCase();x.pr=$('epr').value.trim().toUpperCase();x.t=$('et').value.trim();x.ex=$('eex').value.trim();x.d=$('ed2').value;x.nt=$('ent').value.trim();
+  x.ca=$('eca').value.trim().toUpperCase();x.pr=$('epr').value.trim().toUpperCase();x.t=$('et').value.trim();x.ex=$('eex').value.trim();x.d=$('ed2').value;x.nt=$('ent').value.trim();x.du=$('edu').value?Number($('edu').value):null;
   closeEdit();save(x)});
 $('ecx').onclick=closeEdit;
 $('cx').onclick=()=>{sel=null;render()};
@@ -310,13 +312,13 @@ $('newForm').addEventListener('submit',e=>{e.preventDefault();
   if(!$('t').value.trim()){$('err').textContent='Scrivi prima cosa c\'è da fare';return}
   if(!$('d').value){$('err').textContent='Scegli una scadenza';return}
   if(readOnly){$('err').textContent='Apri la bacheca dal link con il codice per aggiungere segnalazioni.';return}
-  const x={id:(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)),ca:$('ca').value.trim().toUpperCase(),pr:$('pr').value.trim().toUpperCase(),t:$('t').value.trim(),ps:[],s:0,ex:$('ex').value.trim(),nt:'',d:$('d').value,creata:todayIso()};
-  items.set(x.id,x);$('t').value='';$('pr').value='';$('ex').value='';render();save(x)});
+  const x={id:(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)),ca:$('ca').value.trim().toUpperCase(),pr:$('pr').value.trim().toUpperCase(),t:$('t').value.trim(),ps:[],s:0,ex:$('ex').value.trim(),nt:'',d:$('d').value,creata:todayIso(),du:$('du').value?Number($('du').value):null};
+  items.set(x.id,x);$('t').value='';$('pr').value='';$('ex').value='';$('du').value='';render();save(x)});
 ['t','d'].forEach(k=>$(k).addEventListener('input',()=>$('err').textContent=''));
 ['et','ed2'].forEach(k=>$(k).addEventListener('input',()=>$('eerr').textContent=''));
 setInterval(()=>{if(!drag&&!delAsk)render()},10*60*1000);
 
-function dalServer(v){return{id:v.id,ca:v.ca||'',pr:v.pr||'',t:String(v.t||''),ps:Array.isArray(v.ps)?v.ps.filter(p=>P.includes(p)):[],s:Math.max(0,Math.min(3,Number(v.s)||0)),ex:v.ex||'',nt:v.nt||'',d:v.d||todayIso(),creata:v.creata||'',foto:Array.isArray(v.foto)?v.foto:[],fatto_da:v.fatto_da||'',fatto_il:v.fatto_il||''}}
+function dalServer(v){return{id:v.id,ca:v.ca||'',pr:v.pr||'',t:String(v.t||''),ps:Array.isArray(v.ps)?v.ps.filter(p=>P.includes(p)):[],s:Math.max(0,Math.min(3,Number(v.s)||0)),ex:v.ex||'',nt:v.nt||'',d:v.d||todayIso(),creata:v.creata||'',foto:Array.isArray(v.foto)?v.foto:[],fatto_da:v.fatto_da||'',fatto_il:v.fatto_il||'',du:v.du??null}}
 let tCarica=0,primaVolta=true;
 async function carica(){
   clearTimeout(tCarica);

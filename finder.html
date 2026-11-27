@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F1B2D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Musta Finder">
+<link rel="apple-touch-icon" href="icona-180.png">
+<title>Musta Finder</title>
+<!-- MUSTA FINDER (Eric 27/11/2026): dove è Musta e il suo calendario, dal telefono. Verticale = 3 giorni, orizzontale =
+     settimana intera. Tieni premuto un intervento e trascinalo per spostarlo (resta lì, 📌); tocca la 📌 = torna mobile.
+     Dati: cantieri_elenco (codice della bacheca nel link #k=...&o=Musta). Spostamenti: cantieri_calendario
+     (supabase_cantieri_calendario.sql). IL CALCOLO DEL CALENDARIO (pianifica) È LO STESSO DI
+     App Immobiltrade/immo/calendario_operaio.py: se cambi uno, cambia anche l'altro. -->
+<style>
+:root{--blu:#0F1B2D;--blu2:#1E4E8C;--arancio:#EE8524;--riga:#e3e7ee;--grigio:#6b7686;--sfondo:#F4F6F9}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--sfondo);color:var(--blu);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+header{background:var(--blu);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20}
+header h1{margin:0;font-size:18px;font-weight:700;flex:1}
+header h1 span{color:var(--arancio)}
+#stato{font-size:12px;opacity:.8}
+#ora{background:#fff;margin:10px 10px 0;border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:6px solid var(--arancio)}
+#ora .eti{font-size:12px;color:var(--grigio);text-transform:uppercase;letter-spacing:.04em}
+#ora .dove{font-size:19px;font-weight:700;margin:2px 0}
+#ora .cosa{font-size:14px}
+#ora .quando{font-size:13px;color:var(--grigio);margin-top:3px}
+.barra{display:flex;align-items:center;gap:6px;padding:10px;position:sticky;top:calc(env(safe-area-inset-top) + 48px);z-index:15;background:var(--sfondo)}
+.barra button{border:1px solid #cfd6e1;background:#fff;border-radius:8px;padding:7px 13px;font:inherit;font-size:15px;color:var(--blu)}
+.barra .tit{font-weight:600;flex:1;text-align:center;font-size:14px}
+#cal{background:#fff;margin:0 10px;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.griglia{display:grid;position:relative}
+.testa{background:#fff;border-bottom:1px solid var(--riga);padding:6px 2px;text-align:center;font-size:12px;color:var(--grigio)}
+.testa b{display:block;font-size:17px;color:var(--blu);font-weight:600}
+.testa.oggi b{color:#fff;background:var(--blu2);border-radius:50%;width:30px;height:30px;line-height:30px;margin:0 auto}
+.ore{position:relative}
+.ora{position:absolute;right:4px;font-size:10.5px;color:var(--grigio);transform:translateY(-7px)}
+.col{position:relative;border-left:1px solid var(--riga)}
+.col.festa{background:#f7f8fa}
+.lin{position:absolute;left:0;right:0;border-top:1px solid #eef1f5}
+.lavoro{position:absolute;left:0;right:0;background:rgba(30,78,140,.035)}
+.ev{position:absolute;left:2px;right:2px;border-radius:7px;padding:3px 5px 8px 7px;overflow:hidden;color:#10213a;
+    border:1px solid rgba(0,0,0,.08);border-left:5px solid #999;font-size:12px;line-height:1.25;user-select:none;-webkit-user-select:none;
+    -webkit-touch-callout:none;z-index:2}
+.ev.trascina{opacity:.85;z-index:10;box-shadow:0 8px 22px rgba(0,0,0,.3);transform:scale(1.03)}
+.ev.adesso{box-shadow:0 0 0 2px var(--blu2)}
+.ev .o{display:block;font-size:11px;opacity:.75;white-space:nowrap;overflow:hidden;padding-right:16px}
+.ev .c{display:block;font-weight:700;text-transform:uppercase;font-size:11px;overflow-wrap:anywhere}
+.ev .p{font-weight:600}
+.ev .t{display:block}
+.ev .m{position:absolute;right:1px;top:0;font-size:13px;z-index:5;display:flex}
+.ev .pin{padding:2px 3px;border-radius:5px;background:rgba(255,255,255,.75)}
+.ev .bordo{position:absolute;left:0;right:0;bottom:0;height:12px}
+.ev .bordo::after{content:"";position:absolute;left:50%;bottom:3px;width:20px;margin-left:-10px;border-top:2px solid rgba(0,0,0,.25)}
+.ev.oltre{background-image:repeating-linear-gradient(135deg,transparent 0 8px,rgba(209,49,43,.10) 8px 16px)}
+.linea{position:absolute;left:0;right:0;border-top:2px solid #d1312b;z-index:4}
+.linea::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:#d1312b}
+.aiuto{padding:10px 14px 4px;color:var(--grigio);font-size:12px}
+.legenda{padding:0 14px calc(env(safe-area-inset-bottom) + 16px);color:var(--grigio);font-size:12px;display:flex;gap:10px;flex-wrap:wrap}
+.legenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+#foglio{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.2);
+        padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);z-index:30;transform:translateY(110%);transition:transform .2s;max-height:70vh;overflow:auto}
+#foglio.on{transform:none}
+#foglio h3{margin:0 0 4px;font-size:17px}
+#foglio .testo{white-space:pre-wrap;margin:8px 0;font-size:15px}
+#foglio .r{color:var(--grigio);margin:3px 0}
+#foglio button{border:1px solid #cfd6e1;background:#fff;border-radius:8px;padding:10px 14px;font:inherit;margin:8px 6px 0 0;color:var(--blu)}
+#foglio button.primo{background:var(--arancio);border-color:var(--arancio);color:#fff}
+#avviso{margin:10px;padding:10px 12px;border-radius:10px;background:#fff4e5;color:#8a4b00;display:none;font-size:13px}
+#avviso.on{display:block}
+</style></head>
+<body>
+<header><h1>Musta <span>Finder</span></h1><span id="stato">…</span></header>
+<div id="avviso"></div>
+<div id="ora"><div class="eti">Caricamento…</div></div>
+<div class="barra"><button id="prec">‹</button><button id="oggi">Oggi</button><span class="tit" id="tit"></span><button id="succ">›</button></div>
+<div id="cal"><div class="griglia" id="gr"></div></div>
+<div class="aiuto">Gira il telefono in orizzontale per vedere tutta la settimana. Tieni premuto un intervento e trascinalo
+  per spostarlo (resta lì, 📌); tocca la 📌 per farlo tornare mobile; tira il bordo in basso per cambiare la durata.
+  «Dov'è adesso» viene dal calendario (non dal GPS).</div>
+<div class="legenda"><span><i style="background:#d1312b"></i>Alta</span><span><i style="background:#e07b00"></i>Media</span>
+  <span><i style="background:#8a94a6"></i>Bassa</span><span>Colore = cantiere</span><span>⚠ oltre la scadenza</span></div>
+<div id="foglio"></div>
+<script>
+const $ = id => document.getElementById(id);
+const SUPA_URL = "https://miyheufkwfdrlzgqglyk.supabase.co";
+const SUPA_KEY = "sb_publishable_VcQ-zNBNcgl5rQf_MIiP3Q_hOiowtfD"; // chiave PUBBLICA (come la bacheca)
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const par = new URLSearchParams(location.hash.slice(1));
+if (par.get("k")) lsSet("cantieri-k", JSON.stringify(par.get("k")));
+let K = par.get("k"); if (!K) { try { K = JSON.parse(lsGet("cantieri-k") || '""'); } catch (e) { K = ""; } }
+const NOME = par.get("o") || lsGet("finder-nome") || "Musta"; lsSet("finder-nome", NOME);
+if (K && !par.get("k")) history.replaceState(null, "", location.pathname + "#k=" + encodeURIComponent(K) + "&o=" + encodeURIComponent(NOME));
+document.querySelector("header h1").innerHTML = `${NOME.replace(/[<>&]/g, "")} <span>Finder</span>`;
+document.title = NOME + " Finder";
+
+async function rpc(nome, corpo) {
+  const r = await fetch(SUPA_URL + "/rest/v1/rpc/" + nome, {method: "POST", headers: {apikey: SUPA_KEY, "Content-Type": "application/json"},
+    body: JSON.stringify(Object.assign({k: K}, corpo))});
+  if (!r.ok) { const e = new Error(r.status + " " + await r.text()); e.stato = r.status; throw e; }
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+
+// ================= CALENDARIO AUTOMATICO: stessa logica di immo/calendario_operaio.py (pianifica) =================
+const ORARI = [[480, 720], [780, 1020]];       // 8-12 e 13-17
+const GIORNI_LAVORO = new Set([1, 2, 3, 4, 5]); // lun-ven (getDay: domenica = 0)
+const DURATA_STD = 2, PASSO = 15;
+const LIVELLI = {1: "Alta", 2: "Media", 3: "Bassa"};
+const livello = x => { const v = parseInt(x.lv || 2, 10); return [1, 2, 3].includes(v) ? v : 2; };
+const durata = x => { const h = parseFloat(x.du) || 0; return h <= 0 ? [DURATA_STD * 60, true] : [Math.max(PASSO, Math.round(h * 60 / PASSO) * PASSO), false]; };
+const fissato = x => x.inizio ? new Date(x.inizio) : null;
+const mezzanotte = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const alle = (d, m) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, m);
+const minDi = d => d.getHours() * 60 + d.getMinutes();
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const isoOra = d => iso(d) + "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+const domani = d => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+function confronta(a, b) {
+  const ka = [livello(a), a.pri == null ? 1 : 0, a.pri || 0, a.d || "9999", a.creata || ""];
+  const kb = [livello(b), b.pri == null ? 1 : 0, b.pri || 0, b.d || "9999", b.creata || ""];
+  for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
+  return 0;
+}
+function pianifica(righe, adesso) {
+  const aperte = righe.filter(x => (Number(x.s) || 0) < 2);
+  const occ = {};   // giorno → [[da, a], ...] minuti occupati
+  const occupa = (a, b) => {
+    for (let g = mezzanotte(a); g <= b; g = domani(g)) {
+      const i = iso(g) === iso(a) ? minDi(a) : 0, f = iso(g) === iso(b) ? minDi(b) : 1440;
+      if (f > i) (occ[iso(g)] = occ[iso(g)] || []).push([i, f]);
+    }
+  };
+  const liberi = (g, da) => {
+    if (!GIORNI_LAVORO.has(g.getDay())) return [];
+    let pezzi = ORARI.filter(([a, b]) => b > da).map(([a, b]) => [Math.max(a, da), b]);
+    for (const [oa, ob] of (occ[iso(g)] || []).slice().sort((p, q) => p[0] - q[0] || p[1] - q[1])) {
+      const n = [];
+      for (const [a, b] of pezzi) {
+        if (ob <= a || oa >= b) n.push([a, b]);
+        else { if (oa > a) n.push([a, oa]); if (ob < b) n.push([ob, b]); }
+      }
+      pezzi = n;
+    }
+    return pezzi.filter(([a, b]) => b - a >= PASSO);
+  };
+  const riempi = (c, manca) => {
+    const lista = [];
+    for (let k = 0; k < 400 && manca > 0; k++) {
+      const lib = liberi(mezzanotte(c), minDi(c));
+      if (!lib.length) { c = domani(c); continue; }
+      const [a, b] = lib[0];
+      if (b - a < Math.min(manca, 30)) { c = alle(c, b); continue; }   // avanzo di meno di mezz'ora: dopo la pausa
+      const usa = Math.min(manca, b - a), t0 = alle(c, a), t1 = alle(c, a + usa);
+      occupa(t0, t1); lista.push([t0, t1]); manca -= usa; c = t1;
+    }
+    return lista;
+  };
+  const inOrario = t => GIORNI_LAVORO.has(t.getDay()) && ORARI.some(([a, b]) => a <= minDi(t) && minDi(t) < b);
+  const pezzi = {};
+  for (const x of aperte.filter(fissato).sort((a, b) => fissato(a) - fissato(b))) {
+    const a = fissato(x);
+    if (inOrario(a)) pezzi[x.id] = riempi(a, durata(x)[0]);
+    else { const b = new Date(a.getTime() + durata(x)[0] * 60000); occupa(a, b); pezzi[x.id] = [[a, b]]; }
+  }
+  const resto = aperte.filter(x => !fissato(x)).sort(confronta);
+  let cursore = alle(adesso, Math.ceil(minDi(adesso) / PASSO) * PASSO), ultimoCa = null;
+  const liberoOggi = c => liberi(mezzanotte(c), minDi(c)).reduce((s, [a, b]) => s + b - a, 0);
+  const primoLibero = c => {
+    for (let k = 0; k < 400; k++) {
+      const lib = liberi(mezzanotte(c), minDi(c));
+      if (lib.length) return alle(c, lib[0][0]);
+      c = domani(c);
+    }
+    return c;
+  };
+  while (resto.length) {
+    cursore = primoLibero(cursore);
+    const testa = resto[0];
+    const stesso = ultimoCa ? resto.filter(x => (x.ca || "") === ultimoCa) : [];
+    let scelta = testa;
+    if (stesso.length && livello(stesso[0]) === livello(testa)) scelta = stesso[0];
+    else if (stesso.length && liberoOggi(cursore) < durata(testa)[0]) {
+      const entra = stesso.filter(x => durata(x)[0] <= liberoOggi(cursore));
+      if (entra.length) scelta = entra[0];
+    }
+    resto.splice(resto.indexOf(scelta), 1);
+    const manca = durata(scelta)[0];
+    if (manca > liberoOggi(cursore) && liberoOggi(cursore) < 60 && manca <= 480) cursore = primoLibero(domani(cursore));
+    const lista = riempi(cursore, manca);
+    pezzi[scelta.id] = lista;
+    if (lista.length) cursore = lista[lista.length - 1][1];
+    ultimoCa = scelta.ca || "";
+  }
+  const out = [];
+  for (const x of aperte) {
+    const lista = pezzi[x.id] || [];
+    const [minuti, stimata] = durata(x);
+    const fine = lista.length ? lista[lista.length - 1][1] : null;
+    const oltre = !!(x.d && fine && iso(fine) > x.d);
+    lista.forEach(([a, b], n) => out.push({id: x.id, inizio: isoOra(a), fine: isoOra(b), a, b, parte: n + 1, parti: lista.length,
+      fissato: !!fissato(x), ca: x.ca || "", pr: x.pr || "", t: String(x.t || ""), nt: String(x.nt || ""), d: x.d || "",
+      lv: livello(x), ore: minuti / 60, stimata, oltre}));
+  }
+  return out.sort((p, q) => p.a - q.a);
+}
+
+// ================= DATI =================
+const esecutore = ex => ((String(ex || "").match(/[A-Za-zÀ-ÿ']+/) || [""])[0]).toLowerCase();
+let righe = [], eventi = [], inizio = null, selez = null, trascinando = false, colonnaSalv = false;
+try { righe = JSON.parse(lsGet("finder-dati-" + NOME) || "[]"); } catch (e) { righe = []; }
+
+async function carica() {
+  if (trascinando) return;
+  if (!K) { avviso("Apri Musta Finder dal link che ti ha mandato Eric: il codice è già dentro il link."); $("stato").textContent = "manca il codice"; return; }
+  try {
+    const tutte = await rpc("cantieri_elenco", {});
+    righe = (tutte || []).filter(x => esecutore(x.ex) === NOME.toLowerCase() && (Number(x.s) || 0) < 2);
+    lsSet("finder-dati-" + NOME, JSON.stringify(righe));
+    colonnaSalv = (tutte || []).some(x => "inizio" in x);
+    $("stato").textContent = "aggiornato " + new Date().toLocaleTimeString("it-IT", {hour: "2-digit", minute: "2-digit"});
+    avviso(colonnaSalv ? "" : "Per spostare gli interventi da qui va lanciato una volta il file «supabase_cantieri_calendario.sql» in Supabase.");
+  } catch (e) {
+    $("stato").textContent = "senza rete (copia salvata)";
+  }
+  disegna();
+}
+function avviso(t) { $("avviso").textContent = t; $("avviso").className = t ? "on" : ""; }
+
+async function salva(id, campi) {
+  const x = righe.find(r => r.id === id);
+  if (x) Object.assign(x, campi);   // si vede subito; poi si ricarica dal sistema
+  disegna();
+  try { await rpc("cantieri_calendario", {vid: id, campi}); $("stato").textContent = "salvato"; }
+  catch (e) { avviso("Non salvato: " + (e.stato === 404 ? "va lanciato il file «supabase_cantieri_calendario.sql» in Supabase." : e.message)); }
+  carica();
+}
+
+// ================= DISEGNO =================
+const ORA0 = 7, ORA1 = 19;
+const COL_LV = {1: "#d1312b", 2: "#e07b00", 3: "#8a94a6"};
+const GG = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+const MESI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const hhmm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const orizzontale = () => innerWidth > innerHeight || innerWidth >= 900;
+const quantiGiorni = () => orizzontale() ? 6 : 3;
+const lunDi = d => { const x = mezzanotte(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const PX = () => orizzontale() ? 44 : 56;
+function colCantiere(ca) { let h = 0; for (const c of ca || "") h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h},65%,90%)`; }
+const dataLunga = d => `${GG[d.getDay()].toLowerCase()} ${d.getDate()} ${MESI[d.getMonth()]}`;
+
+function giorniVisti() {
+  const n = quantiGiorni();
+  if (!inizio) inizio = mezzanotte(new Date());
+  let g0 = n === 6 ? lunDi(inizio) : mezzanotte(inizio);
+  if (n !== 6 && g0.getDay() === 0) g0 = domani(g0);   // in verticale la domenica si salta
+  const out = [];
+  // in verticale solo i giorni di lavoro (il sabato solo se c'è qualcosa messo a mano); in orizzontale lun-sab
+  const conLavori = new Set(eventi.map(e => iso(e.a)));
+  for (let d = g0, k = 0; out.length < n && k < 60; d = domani(d), k++)
+    if (d.getDay() !== 0 && (n === 6 || d.getDay() !== 6 || conLavori.has(iso(d)))) out.push(d);
+  return out;
+}
+
+function disegnaOra(adesso) {
+  const ora = eventi.find(e => e.a <= adesso && adesso < e.b);
+  const dopo = eventi.find(e => e.a > adesso);
+  let h;
+  if (ora) h = `<div class="eti">Adesso dovrebbe essere a</div><div class="dove">${esc(ora.ca)}${ora.pr ? " · " + esc(ora.pr) : ""}</div>
+      <div class="cosa">${esc(ora.t)}</div><div class="quando">fino alle ${hhmm(minDi(ora.b))}${dopo ? ` · poi ${esc(dopo.ca)} alle ${hhmm(minDi(dopo.a))}${iso(dopo.a) !== iso(adesso) ? " di " + dataLunga(dopo.a) : ""}` : ""}</div>`;
+  else if (dopo) h = `<div class="eti">Adesso nessun intervento in calendario · il prossimo</div><div class="dove">${esc(dopo.ca)}${dopo.pr ? " · " + esc(dopo.pr) : ""}</div>
+      <div class="cosa">${esc(dopo.t)}</div><div class="quando">${iso(dopo.a) === iso(adesso) ? "oggi" : dataLunga(dopo.a)} alle ${hhmm(minDi(dopo.a))}</div>`;
+  else h = `<div class="eti">${esc(NOME)}</div><div class="dove">Niente da fare in calendario</div>`;
+  $("ora").innerHTML = h + `<div class="quando">${righe.length} ${righe.length === 1 ? "lavoro aperto" : "lavori aperti"}</div>`;
+  $("ora").style.borderLeftColor = ora ? COL_LV[ora.lv] : "#8a94a6";
+}
+
+function disegna() {
+  const adesso = new Date();
+  eventi = pianifica(righe, adesso);
+  disegnaOra(adesso);
+  const giorni = giorniVisti(), px = PX(), alt = (ORA1 - ORA0) * px;
+  const p = giorni[0], u = giorni[giorni.length - 1];
+  $("tit").textContent = `${p.getDate()} ${MESI[p.getMonth()]} – ${u.getDate()} ${MESI[u.getMonth()]} ${u.getFullYear()}`;
+  const gr = $("gr");
+  gr.style.gridTemplateColumns = `40px repeat(${giorni.length},1fr)`;
+  let h = `<div class="testa"></div>` + giorni.map(d => `<div class="testa${iso(d) === iso(adesso) ? " oggi" : ""}">${GG[d.getDay()]}<b>${d.getDate()}</b></div>`).join("");
+  h += `<div class="ore" style="height:${alt}px">` + [...Array(ORA1 - ORA0)].map((_, i) => i ? `<span class="ora" style="top:${i * px}px">${ORA0 + i}</span>` : "").join("") + `</div>`;
+  for (const d of giorni) {
+    const g = iso(d);
+    let c = `<div class="col${d.getDay() === 6 ? " festa" : ""}" data-g="${g}" style="height:${alt}px">`;
+    for (let k = 0; k < ORA1 - ORA0; k++) c += `<div class="lin" style="top:${k * px}px"></div>`;
+    if (GIORNI_LAVORO.has(d.getDay())) for (const [a, b] of ORARI) c += `<div class="lavoro" style="top:${(a / 60 - ORA0) * px}px;height:${(b - a) / 60 * px}px"></div>`;
+    if (g === iso(adesso)) { const m = minDi(adesso) - ORA0 * 60; if (m > 0 && m < (ORA1 - ORA0) * 60) c += `<div class="linea" style="top:${m * px / 60}px"></div>`; }
+    for (const e of eventi.filter(e => iso(e.a) === g)) {
+      const a = Math.max(minDi(e.a), ORA0 * 60), b = Math.min(minDi(e.b) || 1440, ORA1 * 60);
+      if (b <= a) continue;
+      const parte = e.parti > 1 ? ` · ${e.parte}/${e.parti}` : "";
+      c += `<div class="ev${e.oltre ? " oltre" : ""}${e.a <= adesso && adesso < e.b ? " adesso" : ""}" data-id="${esc(e.id)}" data-dur="${b - a}"
+        style="top:${(a - ORA0 * 60) * px / 60}px;height:${Math.max(20, (b - a) * px / 60 - 2)}px;background-color:${colCantiere(e.ca)};border-left-color:${COL_LV[e.lv]}">
+        <span class="m">${e.fissato ? `<span class="pin">📌</span>` : ""}${e.oltre ? "⚠" : ""}</span>
+        <span class="o">${hhmm(minDi(e.a))}–${hhmm(minDi(e.b))}${parte}</span><span class="c">${esc(e.ca)}</span>
+        <span class="t">${e.pr ? `<span class="p">${esc(e.pr)}:</span> ` : ""}${esc(e.t)}</span><span class="bordo"></span></div>`;
+    }
+    h += c + `</div>`;
+  }
+  gr.innerHTML = h;
+  gr.querySelectorAll(".ev").forEach(el => { el.addEventListener("touchstart", tocco, {passive: true}); el.addEventListener("mousedown", tocco); });
+  foglio();
+}
+
+// ================= TOCCO: tocco breve = dettagli; tieni premuto = trascina; bordo = durata; 📌 = torna mobile =================
+function tocco(ev) {
+  const el = ev.currentTarget, id = el.dataset.id, touch = ev.type === "touchstart";
+  const punto = e => touch ? (e.touches[0] || e.changedTouches[0]) : e;
+  const p0 = punto(ev), x0 = p0.clientX, y0 = p0.clientY, top0 = el.offsetTop, h0 = el.offsetHeight;
+  const ridim = ev.target.classList.contains("bordo"), pin = ev.target.classList.contains("pin");
+  const e0 = eventi.find(e => e.id === id);
+  let attivo = !touch, mosso = false, annullato = false, colonna = el.parentElement;
+  const timer = touch ? setTimeout(() => { attivo = true; trascinando = true; el.classList.add("trascina"); navigator.vibrate && navigator.vibrate(15); }, 380) : null;
+  if (!touch) ev.preventDefault();
+  const muovi = m => {
+    const p = punto(m), dx = p.clientX - x0, dy = p.clientY - y0;
+    if (!attivo) { if (Math.abs(dx) + Math.abs(dy) > 8) { annullato = true; clearTimeout(timer); fine(); } return; }   // scorre la pagina
+    if (m.cancelable) m.preventDefault();
+    if (!mosso && Math.abs(dx) + Math.abs(dy) < 5) return;
+    mosso = true; trascinando = true; el.classList.add("trascina");
+    const passo = PX() * PASSO / 60;
+    if (ridim) { el.style.height = Math.max(passo, Math.round((h0 + dy) / passo) * passo) + "px"; return; }
+    el.style.top = Math.max(0, Math.round((top0 + dy) / passo) * passo) + "px";
+    const sotto = document.elementsFromPoint(p.clientX, p.clientY).find(n => n.classList && n.classList.contains("col"));
+    if (sotto && sotto !== colonna) { colonna = sotto; sotto.appendChild(el); }
+  };
+  const fine = () => {
+    document.removeEventListener(touch ? "touchmove" : "mousemove", muovi);
+    document.removeEventListener(touch ? "touchend" : "mouseup", lascia);
+    document.removeEventListener("touchcancel", lascia);
+  };
+  const lascia = () => {
+    clearTimeout(timer); fine(); trascinando = false;
+    if (annullato) return;
+    if (!mosso) {
+      el.classList.remove("trascina");
+      if (pin) { salva(id, {inizio: null}); return; }
+      selez = id; foglio(); return;
+    }
+    if (ridim) {
+      const nuovi = Math.round(el.offsetHeight / PX() * 60 / PASSO) * PASSO;
+      salva(id, {du: Math.max(0.25, Math.round((e0.ore + (nuovi - Number(el.dataset.dur)) / 60) * 4) / 4)});
+    } else {
+      const m = ORA0 * 60 + Math.round(el.offsetTop / PX() * 60 / PASSO) * PASSO;
+      const [y, mo, g] = colonna.dataset.g.split("-").map(Number);
+      salva(id, {inizio: new Date(y, mo - 1, g, 0, m).toISOString()});
+    }
+  };
+  document.addEventListener(touch ? "touchmove" : "mousemove", muovi, {passive: false});
+  document.addEventListener(touch ? "touchend" : "mouseup", lascia);
+  if (touch) document.addEventListener("touchcancel", lascia);
+}
+
+function foglio() {
+  const f = $("foglio"), pezzi = eventi.filter(e => e.id === selez);
+  if (!pezzi.length) { f.className = ""; return; }
+  const e = pezzi[0], dd = s => s ? s.slice(8, 10) + "/" + s.slice(5, 7) : "";
+  f.innerHTML = `<h3>${esc(e.ca)}${e.pr ? " · " + esc(e.pr) : ""}</h3><div class="testo">${esc(e.t)}</div>
+    ${e.nt ? `<div class="r">Note: ${esc(e.nt)}</div>` : ""}
+    <div class="r">Priorità <b style="color:${COL_LV[e.lv]}">${LIVELLI[e.lv]}</b> · ${String(e.ore).replace(".", ",")} ore${e.stimata ? " (stimate)" : ""}${e.d ? " · scadenza " + dd(e.d) + "/" + e.d.slice(0, 4) : ""}</div>
+    ${e.oltre ? `<div class="r" style="color:#d1312b"><b>⚠ finisce dopo la scadenza</b></div>` : ""}
+    <div class="r">${pezzi.map(p => `${dataLunga(p.a)} ${hhmm(minDi(p.a))}–${hhmm(minDi(p.b))}`).join(" · ")}${e.fissato ? " · 📌 messo a mano" : ""}</div>
+    ${e.fissato ? `<button class="primo" id="fauto">Togli la puntina (torna mobile)</button>` : ""}<button id="fchiudi">Chiudi</button>`;
+  f.className = "on";
+  if ($("fauto")) $("fauto").onclick = () => { selez = null; salva(e.id, {inizio: null}); };
+  $("fchiudi").onclick = () => { selez = null; foglio(); };
+}
+
+$("prec").onclick = () => { const n = quantiGiorni(); inizio = mezzanotte(giorniVisti()[0]); inizio.setDate(inizio.getDate() - (n === 6 ? 7 : 3)); disegna(); };
+$("succ").onclick = () => { const g = giorniVisti(); inizio = domani(g[g.length - 1]); if (quantiGiorni() === 6) inizio = lunDi(inizio); disegna(); };
+$("oggi").onclick = () => { inizio = null; disegna(); };
+addEventListener("resize", () => { if (!trascinando) disegna(); });   // girando il telefono: 3 giorni ↔ settimana
+setInterval(carica, 60000);                                         // si aggiorna da sola ogni minuto
+document.addEventListener("visibilitychange", () => { if (!document.hidden) carica(); });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+disegna();
+carica();
+</script>
+</body></html>
