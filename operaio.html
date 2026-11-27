@@ -43,6 +43,10 @@ main { padding: 12px 16px; max-width: 640px; margin: 0 auto }
 .avviso { background: var(--orange-bg); color: var(--orange); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; font-size: 15px }
 .avviso.err { background: var(--red-bg); color: var(--red) }
 h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 2px 8px }
+/* Eric 27/11: titoli dei giorni grandi e ben visibili */
+h2.giorno { font-size: 22px; font-weight: 800; color: var(--fg); letter-spacing: .02em; margin: 26px 0 12px;
+  padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-left: 6px solid #EE8524; border-radius: 12px }
+h2.giorno:first-child { margin-top: 6px }
 .vuoto { text-align: center; color: var(--muted); padding: 30px 10px; font-size: 18px }
 .cd { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 0 0 12px; overflow: hidden }
 .urg { padding: 7px 14px; font-weight: 700; font-size: 15px; display: flex; justify-content: space-between; gap: 8px }
@@ -294,7 +298,7 @@ function disegna() {
   let h = "", giorno = "";
   daFare.forEach((x, i) => {
     const g = pezzi[x.id] ? nomeGiorno(quando(x)) : "";
-    if (g && g !== giorno) { h += `<h2>${g}</h2>`; giorno = g; }
+    if (g && g !== giorno) { h += `<h2 class="giorno">${g}</h2>`; giorno = g; }
     h += scheda(x, i, pezzi[x.id]);
   });
   if (!daFare.length) h = `<div class="vuoto">Nessun lavoro da fare 👍</div>`;

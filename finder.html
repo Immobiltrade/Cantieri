@@ -44,12 +44,14 @@ header h1 span{color:var(--arancio)}
     -webkit-touch-callout:none;z-index:2}
 .ev.trascina{opacity:.85;z-index:10;box-shadow:0 8px 22px rgba(0,0,0,.3);transform:scale(1.03)}
 .ev.adesso{box-shadow:0 0 0 2px var(--blu2)}
-.ev .o{display:block;font-size:11px;opacity:.75;white-space:nowrap;overflow:hidden;padding-right:16px}
+.ev .o{display:block;font-size:11px;opacity:.75;white-space:nowrap;overflow:hidden;padding-right:40px}
 .ev .c{display:block;font-weight:700;text-transform:uppercase;font-size:11px;overflow-wrap:anywhere}
 .ev .p{font-weight:600}
 .ev .t{display:block}
 .ev .m{position:absolute;right:1px;top:0;font-size:13px;z-index:5;display:flex}
 .ev .pin{padding:2px 3px;border-radius:5px;background:rgba(255,255,255,.75)}
+/* Eric 27/11: piccola x per eliminare l'intervento (chiede conferma) */
+.ev .x{width:20px;height:20px;margin:1px 1px 0 3px;border-radius:50%;background:rgba(255,255,255,.8);color:#7a2a20;font:700 13px/20px system-ui,sans-serif;text-align:center}
 .ev .bordo{position:absolute;left:0;right:0;bottom:0;height:12px}
 .ev .bordo::after{content:"";position:absolute;left:50%;bottom:3px;width:20px;margin-left:-10px;border-top:2px solid rgba(0,0,0,.25)}
 .ev.oltre{background-image:repeating-linear-gradient(135deg,transparent 0 8px,rgba(209,49,43,.10) 8px 16px)}
@@ -312,7 +314,7 @@ function disegna() {
       const parte = e.parti > 1 ? ` · ${e.parte}/${e.parti}` : "";
       c += `<div class="ev${e.oltre ? " oltre" : ""}${e.a <= adesso && adesso < e.b ? " adesso" : ""}" data-id="${esc(e.id)}" data-dur="${b - a}"
         style="top:${(a - ORA0 * 60) * px / 60}px;height:${Math.max(20, (b - a) * px / 60 - 2)}px;background-color:${colCantiere(e.ca)};border-left-color:${COL_LV[e.lv]}">
-        <span class="m">${e.fissato ? `<span class="pin">📌</span>` : ""}${e.oltre ? "⚠" : ""}</span>
+        <span class="m">${e.fissato ? `<span class="pin">📌</span>` : ""}${e.oltre ? "⚠" : ""}<span class="x" title="Elimina">✕</span></span>
         <span class="o">${hhmm(minDi(e.a))}–${hhmm(minDi(e.b))}${parte}</span><span class="c">${esc(e.ca)}</span>
         <span class="t">${e.pr ? `<span class="p">${esc(e.pr)}:</span> ` : ""}${esc(e.t)}</span><span class="bordo"></span></div>`;
     }
@@ -328,7 +330,7 @@ function tocco(ev) {
   const el = ev.currentTarget, id = el.dataset.id, touch = ev.type === "touchstart";
   const punto = e => touch ? (e.touches[0] || e.changedTouches[0]) : e;
   const p0 = punto(ev), x0 = p0.clientX, y0 = p0.clientY, top0 = el.offsetTop, h0 = el.offsetHeight;
-  const ridim = ev.target.classList.contains("bordo"), pin = ev.target.classList.contains("pin");
+  const ridim = ev.target.classList.contains("bordo"), pin = ev.target.classList.contains("pin"), ics = ev.target.classList.contains("x");
   const e0 = eventi.find(e => e.id === id);
   let attivo = !touch, mosso = false, annullato = false, colonna = el.parentElement;
   const timer = touch ? setTimeout(() => { attivo = true; trascinando = true; el.classList.add("trascina"); navigator.vibrate && navigator.vibrate(15); }, 380) : null;
@@ -356,6 +358,7 @@ function tocco(ev) {
     if (!mosso) {
       el.classList.remove("trascina");
       if (pin) { salva(id, {inizio: null}); return; }
+      if (ics) { elimina(id); return; }
       selez = id; foglio(); return;
     }
     if (ridim) {
@@ -414,6 +417,20 @@ function foglio() {
     if (nuovo) aggiungi(campi, $("fps").value); else modifica(selez, campi);
     selez = null; foglio();
   };
+}
+
+// Eric 27/11: la x sull'intervento lo elimina (dopo conferma), come il cestino della bacheca «Cose da finire»
+async function elimina(id) {
+  const x = righe.find(r => r.id === id);
+  if (!x) return;
+  const altri = (x.ps || []).length > 1 ? "\nSparisce anche per " + x.ps.join(", ") + "." : "";
+  if (!confirm(`Eliminare questo intervento?\n\n${x.ca}${x.pr ? " · " + x.pr : ""}: ${x.t}${altri}`)) return;
+  righe = righe.filter(r => r.id !== id);
+  if (selez === id) selez = null;
+  disegna();
+  try { await rpc("cantieri_elimina", {vid: id}); $("stato").textContent = "eliminato"; }
+  catch (e) { avviso("Non eliminato: " + e.message); }
+  carica();
 }
 
 async function modifica(id, campi) {
