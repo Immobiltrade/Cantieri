@@ -64,7 +64,7 @@ li .fr button:disabled{opacity:.25}
     <a class="back" id="back" href="bacheca.html">‹ Bacheca</a>
     <span class="save" id="save"><span class="dot"></span><span id="saveTxt">Collegamento…</span></span>
   </div>
-  <p class="spiega">Scegli <b>chi esegue</b>, poi trascina le sue cose: <b>in alto la più urgente</b>. L'ordine si salva da solo
+  <p class="spiega"><span id="scegli">Scegli <b>chi esegue</b>, poi trascina</span><span id="solo" hidden>Trascina</span> le sue cose: <b>in alto la più urgente</b>. L'ordine si salva da solo
     e l'operaio lo vede così nella sua app. Le cose arrivate dopo l'ultimo ordine sono segnate <span class="nuova">NUOVA</span> e stanno in fondo.</p>
   <div class="chips" id="chips"></div>
   <div id="err" class="err"></div>
@@ -81,8 +81,11 @@ const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const kLink=new URLSearchParams(location.hash.slice(1)).get('k');
 if(kLink)lsSet('cantieri-k',JSON.stringify(kLink));
 let K=kLink;if(!K){try{K=JSON.parse(lsGet('cantieri-k')||'""')}catch(e){K=''}}
-if(K&&!kLink)history.replaceState(null,'',location.pathname+'#k='+encodeURIComponent(K));
+// Eric 27/11: dalla pagina Musta della piattaforma si apre già su di lui (#o=Musta): niente scelta dell'operaio
+const oLink=new URLSearchParams(location.hash.slice(1)).get('o')||'';
+if(K&&!kLink)history.replaceState(null,'',location.pathname+'#k='+encodeURIComponent(K)+(oLink?'&o='+encodeURIComponent(oLink):''));
 $('back').href='bacheca.html#k='+encodeURIComponent(K||'');
+if(oLink){$('back').style.display='none';$('chips').style.display='none';$('scegli').hidden=true;$('solo').hidden=false}
 async function rpc(nome,corpo){
   const r=await fetch(SUPA_URL+'/rest/v1/rpc/'+nome,{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify(Object.assign({k:K},corpo))});
   if(!r.ok){const e=new Error(r.status+' '+await r.text());e.stato=r.status;throw e}
@@ -94,7 +97,7 @@ const gg=d=>{if(!d)return null;const o=new Date();o.setHours(0,0,0,0);return Mat
 const fmt=d=>d?d.split('-').reverse().slice(0,2).join('/'):'';
 const ordina=(a,b)=>((a.pri==null)-(b.pri==null))||((a.pri||0)-(b.pri||0))||String(a.d||'9999').localeCompare(String(b.d||'9999'))||String(a.creata||'').localeCompare(String(b.creata||''));
 
-let righe=[],scelto=lsGet('cantieri-priorita-ex')||'',ordine=[],sortable=null,tSalva=0,inSalvataggio=false;
+let righe=[],scelto=oLink?esecutore(oLink):(lsGet('cantieri-priorita-ex')||''),ordine=[],sortable=null,tSalva=0,inSalvataggio=false;
 function stato(cl,t){$('save').className='save '+cl;$('saveTxt').textContent=t}
 
 async function carica(){
